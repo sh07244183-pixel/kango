@@ -1171,7 +1171,7 @@ async function calculateDistances() {
   switchTab('report');
 }
 
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbwmoSEAQlSBfOfYZEW8haZPu1Q7mL5f8l6Z9YaM2HgnCPWnajISDW7SxrC3eIuXLvT3UA/exec';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbz94qDDWrQiWaTkzcz9i2LMh12lfEKKGGoBVoZMY0o8asA8QpVLHPdOo0L0mULMHg_bKQ/exec';
 
 async function callDistanceMatrixAPI(origin, destination) {
   const url = `${GAS_URL}?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}&key=${encodeURIComponent(apiKey)}`;
