@@ -146,6 +146,7 @@ tr:hover td { background: var(--surface2); }
 .tag-blue { background: rgba(88,166,255,0.15); color: var(--blue); border: 1px solid rgba(88,166,255,0.3); }
 .tag-orange { background: rgba(240,136,62,0.15); color: var(--orange); border: 1px solid rgba(240,136,62,0.3); }
 .tag-red { background: rgba(247,129,102,0.15); color: var(--red); border: 1px solid rgba(247,129,102,0.3); }
+.tag-purple { background: rgba(188,140,255,0.15); color: var(--purple); border: 1px solid rgba(188,140,255,0.3); }
 
 /* CSV AREA */
 .csv-area {
@@ -286,6 +287,7 @@ tr:hover td { background: var(--surface2); }
     <button class="tab active" onclick="switchTab('master')">👤 マスタ登録</button>
     <button class="tab" onclick="switchTab('csv')">📋 CSV読み込み</button>
     <button class="tab" onclick="switchTab('expense')">💴 経費入力</button>
+    <button class="tab" onclick="switchTab('incentive')">💰 歩合</button>
     <button class="tab" onclick="switchTab('report')">📊 月次レポート</button>
     <button class="tab" onclick="switchTab('storage')">💾 データ管理</button>
   </div>
@@ -591,6 +593,73 @@ tr:hover td { background: var(--surface2); }
     </div>
   </div>
 
+  <!-- ===== TAB4: 歩合 ===== -->
+  <div class="tab-content" id="tab-incentive">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">💰 歩合計算 <span class="badge">自動集計</span></div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <select id="incentiveMonth" style="padding:6px 10px;font-size:12px;"></select>
+        </div>
+      </div>
+
+      <div class="alert alert-info" style="margin-bottom:16px;">
+        <span>ℹ️</span>
+        <div>
+          <strong>正社員：</strong>通常500円/件、18:00以降開始1,000円/件<br>
+          <strong>委託：</strong>通常2,500円/件、18:00以降開始3,000円/件<br>
+          <span style="font-size:11px;color:var(--text2);">同行スタッフ（職員名2）も1件としてカウント</span>
+        </div>
+      </div>
+
+      <!-- サマリ -->
+      <div class="stats-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:20px;">
+        <div class="stat-card">
+          <div class="stat-label">歩合合計</div>
+          <div class="stat-value" id="incentiveTotalAll">—<span class="stat-unit"> 円</span></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">通常件数</div>
+          <div class="stat-value" id="incentiveNormalCount">—<span class="stat-unit"> 件</span></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">夜間件数（18時以降）</div>
+          <div class="stat-value" id="incentiveNightCount">—<span class="stat-unit"> 件</span></div>
+        </div>
+      </div>
+
+      <!-- 看護師別テーブル -->
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>看護師名</th>
+              <th>雇用形態</th>
+              <th>通常件数</th>
+              <th>夜間件数</th>
+              <th>合計件数</th>
+              <th>歩合合計</th>
+            </tr>
+          </thead>
+          <tbody id="incentiveTable"><tr class="empty-row"><td colspan="6">CSVを読み込んで計算してください</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 日別明細 -->
+    <div class="card" id="incentiveDetailCard" style="display:none;">
+      <div class="card-header">
+        <div class="card-title">📅 歩合 日別明細</div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>日付</th><th>看護師</th><th>利用者</th><th>開始時間</th><th>区分</th><th>単価</th></tr></thead>
+          <tbody id="incentiveDetailTable"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
   <!-- ===== TAB5: データ管理 ===== -->
   <div class="tab-content" id="tab-storage">
 
@@ -671,6 +740,7 @@ renderNurseTable();
 renderClientTable();
 initReportMonths();
 initExpenseMonths();
+initIncentiveMonths();
 
 // ============================================================
 // API KEY
@@ -746,7 +816,7 @@ function updateApiStatus() {
 // TABS
 // ============================================================
 function switchTab(name) {
-  const names = ['master','csv','expense','report','storage'];
+  const names = ['master','csv','expense','incentive','report','storage'];
   document.querySelectorAll('.tab').forEach((t,i) => {
     t.classList.toggle('active', names[i] === name);
   });
@@ -755,6 +825,7 @@ function switchTab(name) {
   if (name === 'report') renderReport();
   if (name === 'expense') renderExpenseTable();
   if (name === 'storage') renderStorageTab();
+  if (name === 'incentive') renderIncentiveTab();
 }
 
 // ============================================================
@@ -1000,6 +1071,8 @@ function parseCsv() {
   const header = rows[0];
   const idx = {
     nurse1:   header.indexOf('職員名１'),
+    nurse2:   header.indexOf('職員名２'),
+    nurse3:   header.indexOf('職員名３'),
     date:     header.indexOf('日付'),
     client:   header.indexOf('利用者'),
     startTime:header.indexOf('開始時間'),
@@ -1047,9 +1120,13 @@ function parseCsv() {
     if (!nurse)  unmatched.nurses.add(nurseName);
     if (!client) unmatched.clients.add(clientName);
 
+    const nurse2Name = idx.nurse2 >= 0 ? (cols[idx.nurse2] || '').replace(/\u3000/g, '　').trim() : '';
+    const nurse3Name = idx.nurse3 >= 0 ? (cols[idx.nurse3] || '').replace(/\u3000/g, '　').trim() : '';
+
     scheduleRows.push({
       nurseName, clientName, date, time: startTime, order: 0,
-      nurseFound: !!nurse, clientFound: !!client, nurse, client
+      nurseFound: !!nurse, clientFound: !!client, nurse, client,
+      nurse2Name, nurse3Name
     });
   });
 
@@ -1063,6 +1140,7 @@ function parseCsv() {
 
   renderCsvPreview();
   syncReportMonth(yearMonth);
+  localStorage.setItem('scheduleRows', JSON.stringify(scheduleRows));
 
   const warns = [];
   if (unmatched.nurses.size) warns.push(`未登録の看護師 ${unmatched.nurses.size}名:\n  ${[...unmatched.nurses].join('\n  ')}`);
@@ -1203,7 +1281,121 @@ async function getRouteDistance(waypoints) {
 }
 
 // ============================================================
-// DATA STORAGE MANAGEMENT
+// INCENTIVE（歩合）
+// ============================================================
+function initIncentiveMonths() {
+  const sel = document.getElementById('incentiveMonth');
+  for (let m = 1; m <= 12; m++) {
+    const val = `2026-${String(m).padStart(2,'0')}`;
+    const opt = document.createElement('option');
+    opt.value = val;
+    opt.textContent = `2026年${m}月`;
+    sel.appendChild(opt);
+  }
+  sel.value = '2026-03';
+  sel.addEventListener('change', renderIncentiveTab);
+}
+
+function calcIncentiveUnit(nurseName, startTime) {
+  const nurse = nurses.find(n => {
+    const normalize = s => s.replace(/[\u3000\s]/g, '');
+    return normalize(n.name) === normalize(nurseName);
+  });
+  const isContract = nurse?.employType === 'contract';
+  const isNight = startTime >= '18:00';
+  if (isContract) return isNight ? 3000 : 2500;
+  return isNight ? 1000 : 500;
+}
+
+function renderIncentiveTab() {
+  const month = document.getElementById('incentiveMonth').value;
+
+  // scheduleRowsから対象月のデータを使う
+  // localStorageに保存されたscheduleRowsがない場合は現在のscheduleRowsを使う
+  const savedRows = JSON.parse(localStorage.getItem('scheduleRows') || '[]');
+  const rows = savedRows.length ? savedRows : scheduleRows;
+  const monthRows = rows.filter(r => r.date && r.date.startsWith(month));
+
+  if (!monthRows.length) {
+    document.getElementById('incentiveTable').innerHTML =
+      '<tr class="empty-row"><td colspan="6">データがありません。CSVを読み込んでください。</td></tr>';
+    document.getElementById('incentiveDetailCard').style.display = 'none';
+    document.getElementById('incentiveTotalAll').innerHTML = '—<span class="stat-unit"> 円</span>';
+    document.getElementById('incentiveNormalCount').innerHTML = '—<span class="stat-unit"> 件</span>';
+    document.getElementById('incentiveNightCount').innerHTML = '—<span class="stat-unit"> 件</span>';
+    return;
+  }
+
+  // 看護師ごとに集計（同行スタッフも含む）
+  const byNurse = {};
+
+  const addVisit = (nurseName, date, clientName, startTime) => {
+    if (!nurseName) return;
+    if (!byNurse[nurseName]) byNurse[nurseName] = { normal: 0, night: 0, total: 0, details: [] };
+    const isNight = startTime >= '18:00';
+    const unit = calcIncentiveUnit(nurseName, startTime);
+    if (isNight) byNurse[nurseName].night++;
+    else byNurse[nurseName].normal++;
+    byNurse[nurseName].total += unit;
+    byNurse[nurseName].details.push({ date, clientName, startTime, isNight, unit });
+  };
+
+  monthRows.forEach(r => {
+    addVisit(r.nurseName, r.date, r.clientName, r.time);
+    if (r.nurse2Name) addVisit(r.nurse2Name, r.date, r.clientName, r.time);
+    if (r.nurse3Name) addVisit(r.nurse3Name, r.date, r.clientName, r.time);
+  });
+
+  const nurseList = Object.keys(byNurse).sort();
+  const totalAll = nurseList.reduce((s, n) => s + byNurse[n].total, 0);
+  const totalNormal = nurseList.reduce((s, n) => s + byNurse[n].normal, 0);
+  const totalNight = nurseList.reduce((s, n) => s + byNurse[n].night, 0);
+
+  document.getElementById('incentiveTotalAll').innerHTML = `${totalAll.toLocaleString()}<span class="stat-unit"> 円</span>`;
+  document.getElementById('incentiveNormalCount').innerHTML = `${totalNormal}<span class="stat-unit"> 件</span>`;
+  document.getElementById('incentiveNightCount').innerHTML = `${totalNight}<span class="stat-unit"> 件</span>`;
+
+  // 看護師別テーブル
+  const tbody = document.getElementById('incentiveTable');
+  tbody.innerHTML = nurseList.map(name => {
+    const d = byNurse[name];
+    const nurse = nurses.find(n => n.name.replace(/[\u3000\s]/g,'') === name.replace(/[\u3000\s]/g,''));
+    const typeTag = nurse?.employType === 'contract'
+      ? `<span class="tag tag-orange">委託</span>`
+      : `<span class="tag tag-blue">正社員</span>`;
+    return `
+      <tr>
+        <td><strong>${name}</strong></td>
+        <td>${typeTag}</td>
+        <td>${d.normal}件</td>
+        <td>${d.night > 0 ? `<span class="tag tag-purple">${d.night}件</span>` : '—'}</td>
+        <td>${d.normal + d.night}件</td>
+        <td><strong style="font-family:var(--mono);color:var(--orange)">¥${d.total.toLocaleString()}</strong></td>
+      </tr>
+    `;
+  }).join('');
+
+  // 日別明細
+  document.getElementById('incentiveDetailCard').style.display = 'block';
+  const detailTbody = document.getElementById('incentiveDetailTable');
+  const allDetails = [];
+  nurseList.forEach(name => {
+    byNurse[name].details.forEach(d => allDetails.push({ nurseName: name, ...d }));
+  });
+  allDetails.sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime));
+  detailTbody.innerHTML = allDetails.map(d => `
+    <tr>
+      <td>${d.date}</td>
+      <td>${d.nurseName}</td>
+      <td>${d.clientName}</td>
+      <td>${d.startTime} ${d.isNight ? '<span class="tag tag-purple" style="font-size:10px;">夜間</span>' : ''}</td>
+      <td>${d.isNight ? '夜間' : '通常'}</td>
+      <td style="font-family:var(--mono)">¥${d.unit.toLocaleString()}</td>
+    </tr>
+  `).join('');
+}
+
+
 // ============================================================
 function getAllMonths() {
   const results = JSON.parse(localStorage.getItem('results') || '[]');
@@ -1408,17 +1600,13 @@ function renderExpenseTable() {
     const isContract = n.employType === 'contract';
 
     // 委託スタッフ：月の走行距離合計×20円を自動計算
-    let autoGas = '';
     let autoGasVal = 0;
     if (isContract) {
+      const normalize = s => s.replace(/[\u3000\s]/g, '');
       const totalKm = allResults
-        .filter(r => r.date.startsWith(month) && r.nurseName === n.name)
+        .filter(r => r.date.startsWith(month) && normalize(r.nurseName) === normalize(n.name))
         .reduce((s, r) => s + (r.distanceKm || 0), 0);
       autoGasVal = Math.round(totalKm * 20);
-      autoGas = autoGasVal;
-      // 委託の場合は自動値をexpensesにも反映
-      if (!monthData[n.name]) monthData[n.name] = { gas: '', parking: '', other: '', note: '' };
-      monthData[n.name].gas = String(autoGasVal);
     }
 
     const gasVal = isContract ? autoGasVal : (parseInt(e.gas) || 0);
@@ -1460,8 +1648,9 @@ function renderExpenseTable() {
   const updatedExpenses = getExpenses();
   if (!updatedExpenses[month]) updatedExpenses[month] = {};
   nurses.filter(n => n.employType === 'contract').forEach(n => {
+    const normalize = s => s.replace(/[\u3000\s]/g, '');
     const totalKm = allResults
-      .filter(r => r.date.startsWith(month) && r.nurseName === n.name)
+      .filter(r => r.date.startsWith(month) && normalize(r.nurseName) === normalize(n.name))
       .reduce((s, r) => s + (r.distanceKm || 0), 0);
     if (!updatedExpenses[month][n.name]) updatedExpenses[month][n.name] = { gas:'', parking:'', other:'', note:'' };
     updatedExpenses[month][n.name].gas = String(Math.round(totalKm * 20));
