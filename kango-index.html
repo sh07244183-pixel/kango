@@ -1,3 +1,242 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>訪問看護 走行距離管理システム</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0d1117;
+  --surface: #161b22;
+  --surface2: #21262d;
+  --surface3: #2d333b;
+  --border: #30363d;
+  --accent: #2ea043;
+  --accent-hover: #3fb950;
+  --blue: #58a6ff;
+  --orange: #f0883e;
+  --red: #f78166;
+  --purple: #bc8cff;
+  --text: #e6edf3;
+  --text2: #8b949e;
+  --text3: #484f58;
+  --radius: 8px;
+  --font: 'Noto Sans JP', sans-serif;
+  --mono: 'DM Mono', monospace;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: var(--font); font-size: 14px; min-height: 100vh; }
+
+/* HEADER */
+header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px;
+  height: 52px;
+  display: flex; align-items: center; justify-content: space-between;
+  position: sticky; top: 0; z-index: 100;
+}
+.logo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 15px; }
+.logo-icon {
+  width: 28px; height: 28px;
+  background: linear-gradient(135deg, var(--accent), var(--blue));
+  border-radius: 6px;
+  display: flex; align-items: center; justify-content: center; font-size: 15px;
+}
+.api-status {
+  display: flex; align-items: center; gap: 8px;
+  font-family: var(--mono); font-size: 11px; color: var(--text2);
+  background: var(--bg); border: 1px solid var(--border);
+  padding: 5px 12px; border-radius: 20px; cursor: pointer;
+  transition: border-color 0.2s;
+}
+.api-status:hover { border-color: var(--blue); }
+.api-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text3); }
+.api-dot.active { background: var(--accent); box-shadow: 0 0 6px var(--accent); }
+
+/* LAYOUT */
+.container { max-width: 1100px; margin: 0 auto; padding: 24px 20px; }
+
+/* TABS */
+.tabs {
+  display: flex; gap: 2px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 4px; margin-bottom: 24px;
+  width: fit-content;
+}
+.tab {
+  padding: 7px 18px; border-radius: 6px; border: none;
+  background: transparent; color: var(--text2); font-family: var(--font);
+  font-size: 13px; cursor: pointer; transition: all 0.15s; white-space: nowrap;
+}
+.tab.active { background: var(--surface2); color: var(--text); font-weight: 500; }
+.tab:hover:not(.active) { color: var(--text); }
+
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+/* CARDS */
+.card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 20px; margin-bottom: 16px;
+}
+.card-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 16px;
+}
+.card-title { font-weight: 600; font-size: 14px; display: flex; align-items: center; gap: 8px; }
+.badge {
+  font-family: var(--mono); font-size: 10px;
+  background: var(--surface2); border: 1px solid var(--border);
+  padding: 2px 7px; border-radius: 10px; color: var(--text2);
+}
+
+/* FORMS */
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+.form-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+.form-group { display: flex; flex-direction: column; gap: 5px; }
+label { font-size: 12px; color: var(--text2); font-weight: 500; }
+input, select, textarea {
+  background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+  color: var(--text); font-family: var(--font); font-size: 13px;
+  padding: 8px 12px; transition: border-color 0.2s; outline: none;
+}
+input:focus, select:focus, textarea:focus { border-color: var(--blue); }
+textarea { resize: vertical; min-height: 80px; }
+input.filled { border-color: var(--accent); background: rgba(46,160,67,0.06); }
+
+/* BUTTONS */
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 16px; border-radius: 6px; border: none;
+  font-family: var(--font); font-size: 13px; font-weight: 500;
+  cursor: pointer; transition: all 0.15s;
+}
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: var(--accent-hover); }
+.btn-primary:disabled { background: var(--surface3); color: var(--text3); cursor: not-allowed; }
+.btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+.btn-secondary:hover { background: var(--surface3); border-color: var(--text3); }
+.btn-danger { background: transparent; color: var(--red); border: 1px solid transparent; }
+.btn-danger:hover { background: rgba(247,129,102,0.1); border-color: var(--red); }
+.btn-sm { padding: 5px 10px; font-size: 12px; }
+
+/* TABLE */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; }
+th {
+  text-align: left; padding: 10px 12px;
+  font-size: 11px; font-weight: 600; color: var(--text2);
+  text-transform: uppercase; letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface2);
+}
+td { padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 13px; }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: var(--surface2); }
+.empty-row td { color: var(--text3); text-align: center; padding: 32px; }
+
+/* TAGS */
+.tag {
+  display: inline-block; padding: 2px 8px; border-radius: 10px;
+  font-size: 11px; font-weight: 500;
+}
+.tag-green { background: rgba(46,160,67,0.15); color: var(--accent-hover); border: 1px solid rgba(46,160,67,0.3); }
+.tag-blue { background: rgba(88,166,255,0.15); color: var(--blue); border: 1px solid rgba(88,166,255,0.3); }
+.tag-orange { background: rgba(240,136,62,0.15); color: var(--orange); border: 1px solid rgba(240,136,62,0.3); }
+.tag-red { background: rgba(247,129,102,0.15); color: var(--red); border: 1px solid rgba(247,129,102,0.3); }
+
+/* CSV AREA */
+.csv-area {
+  background: var(--bg); border: 2px dashed var(--border); border-radius: var(--radius);
+  padding: 20px; transition: border-color 0.2s;
+}
+.csv-area:focus-within { border-color: var(--blue); }
+.csv-area textarea { background: transparent; border: none; padding: 0; width: 100%; min-height: 120px; font-family: var(--mono); font-size: 12px; }
+.csv-area textarea:focus { border: none; }
+
+/* RESULT */
+.result-section { margin-top: 24px; }
+.result-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-bottom: none; border-radius: var(--radius) var(--radius) 0 0;
+}
+.result-title { font-weight: 600; font-size: 14px; }
+.result-table-wrap {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 0 0 var(--radius) var(--radius); overflow: hidden;
+}
+
+/* STATS */
+.stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px; }
+.stat-card {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 16px;
+}
+.stat-label { font-size: 11px; color: var(--text2); font-weight: 500; margin-bottom: 6px; }
+.stat-value { font-size: 24px; font-weight: 700; font-family: var(--mono); }
+.stat-unit { font-size: 13px; color: var(--text2); font-weight: 400; }
+
+/* PROGRESS */
+.progress-bar {
+  height: 4px; background: var(--surface3); border-radius: 2px; overflow: hidden;
+}
+.progress-fill { height: 100%; border-radius: 2px; transition: width 0.5s ease; }
+
+/* ALERT */
+.alert {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 12px 14px; border-radius: var(--radius); margin-bottom: 16px;
+  font-size: 13px;
+}
+.alert-info { background: rgba(88,166,255,0.1); border: 1px solid rgba(88,166,255,0.3); color: var(--blue); }
+.alert-warn { background: rgba(240,136,62,0.1); border: 1px solid rgba(240,136,62,0.3); color: var(--orange); }
+.alert-success { background: rgba(46,160,67,0.1); border: 1px solid rgba(46,160,67,0.3); color: var(--accent-hover); }
+.alert-error { background: rgba(247,129,102,0.1); border: 1px solid rgba(247,129,102,0.3); color: var(--red); }
+
+/* MODAL */
+.modal-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.7); z-index: 200;
+  align-items: center; justify-content: center;
+}
+.modal-overlay.open { display: flex; }
+.modal {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 12px; padding: 28px; width: 440px; max-width: 90vw;
+}
+.modal h3 { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
+.modal p { color: var(--text2); font-size: 13px; margin-bottom: 20px; }
+.modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
+
+/* SPINNER */
+.spinner {
+  width: 16px; height: 16px;
+  border: 2px solid transparent; border-top-color: currentColor;
+  border-radius: 50%; animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* LOADING OVERLAY */
+.loading-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(13,17,23,0.85); z-index: 300;
+  align-items: center; justify-content: center; flex-direction: column; gap: 16px;
+}
+.loading-overlay.open { display: flex; }
+.loading-text { font-size: 14px; color: var(--text2); }
+
+@media (max-width: 600px) {
+  .form-row, .form-row-3 { grid-template-columns: 1fr; }
+  .stats-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
 <!-- HEADER -->
 <header>
   <div class="logo">
@@ -460,13 +699,15 @@ function testGasConnection() {
   resultEl.style.color = 'var(--text2)';
   resultEl.textContent = '🔄 テスト中...';
 
+  const url = `${GAS_URL}?origin=${encodeURIComponent('横浜市西区高島2-16-1')}&destination=${encodeURIComponent('横浜市中区山下町1-1')}&key=${encodeURIComponent(key)}`;
   const timer = setTimeout(() => {
     resultEl.style.color = 'var(--red)';
     resultEl.textContent = '❌ 接続失敗: タイムアウト（20秒）';
   }, 20000);
 
-  google.script.run
-    .withSuccessHandler(data => {
+  fetch(url)
+    .then(res => res.json())
+    .then(data => {
       clearTimeout(timer);
       if (data.status !== 'OK') {
         resultEl.style.color = 'var(--red)';
@@ -483,12 +724,11 @@ function testGasConnection() {
       resultEl.style.color = 'var(--accent)';
       resultEl.textContent = `✅ 接続成功！テスト距離: ${km}km`;
     })
-    .withFailureHandler(err => {
+    .catch(err => {
       clearTimeout(timer);
       resultEl.style.color = 'var(--red)';
       resultEl.textContent = `❌ 接続失敗: ${err.message}`;
-    })
-    .getDistance('横浜市西区高島2-16-1', '横浜市中区山下町1-1', key);
+    });
 }
 function updateApiStatus() {
   const dot = document.getElementById('apiDot');
@@ -931,25 +1171,25 @@ async function calculateDistances() {
   switchTab('report');
 }
 
-
-
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbwmoSEAQlSBfOfYZEW8haZPu1Q7mL5f8l6Z9YaM2HgnCPWnajISDW7SxrC3eIuXLvT3UA/exec';
 
 async function callDistanceMatrixAPI(origin, destination) {
+  const url = `${GAS_URL}?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}&key=${encodeURIComponent(apiKey)}`;
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error('タイムアウト（20秒）')), 20000);
-    google.script.run
-      .withSuccessHandler(data => {
+    fetch(url)
+      .then(res => {
         clearTimeout(timer);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
+      .then(data => {
         if (data.status !== 'OK') { reject(new Error(`Maps API: ${data.status} ${data.error_message||''}`)); return; }
         const element = data.rows[0]?.elements[0];
         if (!element || element.status !== 'OK') { reject(new Error(`ルート不明: ${element?.status}`)); return; }
         resolve(element.distance.value);
       })
-      .withFailureHandler(err => {
-        clearTimeout(timer);
-        reject(new Error(err.message || 'GASエラー'));
-      })
-      .getDistance(origin, destination, apiKey);
+      .catch(err => { clearTimeout(timer); reject(err); });
   });
 }
 
@@ -1490,3 +1730,5 @@ function exportCsv() {
   URL.revokeObjectURL(url);
 }
 </script>
+</body>
+</html>
