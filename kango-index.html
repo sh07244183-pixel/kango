@@ -1,0 +1,1492 @@
+<!-- HEADER -->
+<header>
+  <div class="logo">
+    <div class="logo-icon">🚗</div>
+    訪問看護 走行距離管理
+  </div>
+  <div class="api-status" onclick="openApiModal()">
+    <div class="api-dot" id="apiDot"></div>
+    <span id="apiStatusText">APIキー未設定</span>
+  </div>
+</header>
+
+<!-- LOADING -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="spinner" style="width:36px;height:36px;border-width:3px;border-top-color:var(--blue);"></div>
+  <div class="loading-text" id="loadingText">距離を計算中...</div>
+  <button onclick="stopCalculation()" style="
+    margin-top:16px; padding:8px 24px; border-radius:6px; border:1px solid var(--red);
+    background:transparent; color:var(--red); font-size:13px; cursor:pointer;
+  ">⏹ 計算を中断する</button>
+</div>
+
+<!-- API KEY MODAL -->
+<div class="modal-overlay" id="apiModal">
+  <div class="modal">
+    <h3>🔑 Google Maps APIキー設定</h3>
+    <p>Distance Matrix APIが有効なキーを入力してください。キーはこのブラウザにのみ保存されます。</p>
+    <div class="form-group" style="margin-bottom:12px;">
+      <label>APIキー</label>
+      <input type="password" id="apiKeyInput" placeholder="AIzaSy..." />
+    </div>
+    <div id="gasTestResult" style="font-size:12px;margin-bottom:12px;display:none;"></div>
+    <div class="modal-actions" style="flex-wrap:wrap;gap:8px;">
+      <button class="btn btn-secondary btn-sm" onclick="testGasConnection()">🔌 接続テスト</button>
+      <div style="flex:1;"></div>
+      <button class="btn btn-secondary" onclick="closeApiModal()">キャンセル</button>
+      <button class="btn btn-primary" onclick="saveApiKey()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="container">
+
+  <!-- TABS -->
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('master')">👤 マスタ登録</button>
+    <button class="tab" onclick="switchTab('csv')">📋 CSV読み込み</button>
+    <button class="tab" onclick="switchTab('expense')">💴 経費入力</button>
+    <button class="tab" onclick="switchTab('report')">📊 月次レポート</button>
+    <button class="tab" onclick="switchTab('storage')">💾 データ管理</button>
+  </div>
+
+  <!-- ===== TAB1: マスタ登録 ===== -->
+  <div class="tab-content active" id="tab-master">
+
+    <!-- 看護師登録 -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">👩‍⚕️ 看護師マスタ <span class="badge" id="nurseBadge">0名</span></div>
+        <div style="display:flex;gap:6px;">
+          <button class="btn btn-secondary btn-sm" onclick="toggleNurseBulk()">📋 一括登録</button>
+          <button class="btn btn-primary btn-sm" onclick="openNurseForm()">＋ 追加</button>
+        </div>
+      </div>
+
+      <!-- 一括登録エリア -->
+      <div id="nurseBulkArea" style="display:none;margin-bottom:16px;">
+        <div class="alert alert-info" style="margin-bottom:10px;">
+          <span>ℹ️</span>
+          <div>
+            1行1名で「<strong>氏名　雇用形態　住所</strong>」をタブ区切りで貼り付け。<br>
+            雇用形態は「正社員」または「委託」（省略時は正社員）<br>
+            <span style="font-family:var(--mono);font-size:11px;">例：田中花子	正社員	横浜市西区〇〇1-1</span>
+          </div>
+        </div>
+        <div class="csv-area">
+          <textarea id="nurseBulkInput" placeholder="田中花子	正社員	横浜市西区〇〇1-1-1&#10;山本幸子	委託	横浜市中区〇〇2-2-2&#10;..." style="min-height:100px;width:100%;font-family:var(--mono);font-size:12px;background:transparent;border:none;"></textarea>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:10px;">
+          <button class="btn btn-primary btn-sm" onclick="bulkAddNurses()">✅ 一括登録</button>
+          <button class="btn btn-secondary btn-sm" onclick="toggleNurseBulk()">キャンセル</button>
+        </div>
+      </div>
+
+      <div id="nurseFormArea" style="display:none; margin-bottom:16px;">
+        <div class="form-row">
+          <div class="form-group">
+            <label>看護師名 *</label>
+            <input type="text" id="nurseName" placeholder="例：田中 花子" />
+          </div>
+          <div class="form-group">
+            <label>住所 *</label>
+            <input type="text" id="nurseAddress" placeholder="例：横浜市西区みなとみらい1-1-1" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>雇用形態 *</label>
+            <select id="nurseEmployType">
+              <option value="employee">正社員（ガソリン代：手入力）</option>
+              <option value="contract">委託スタッフ（ガソリン代：距離×20円）</option>
+            </select>
+          </div>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button class="btn btn-primary btn-sm" onclick="addNurse()">登録</button>
+          <button class="btn btn-secondary btn-sm" onclick="closeNurseForm()">キャンセル</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>氏名</th><th>雇用形態</th><th>住所</th><th>操作</th></tr></thead>
+          <tbody id="nurseTable"><tr class="empty-row"><td colspan="4">看護師が登録されていません</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 利用者登録 -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">🏠 利用者マスタ <span class="badge" id="clientBadge">0名</span></div>
+        <div style="display:flex;gap:6px;">
+          <button class="btn btn-secondary btn-sm" onclick="toggleClientBulk()">📋 一括登録</button>
+          <button class="btn btn-primary btn-sm" onclick="openClientForm()">＋ 追加</button>
+        </div>
+      </div>
+
+      <!-- 一括登録エリア -->
+      <div id="clientBulkArea" style="display:none;margin-bottom:16px;">
+        <div class="alert alert-info" style="margin-bottom:10px;">
+          <span>ℹ️</span>
+          <div>
+            1行1名で「<strong>氏名　住所</strong>」をタブ区切りで貼り付け。<br>
+            <span style="font-family:var(--mono);font-size:11px;">例：山田太郎	横浜市中区〇〇1-1</span>
+          </div>
+        </div>
+        <div class="csv-area">
+          <textarea id="clientBulkInput" placeholder="山田太郎	横浜市中区〇〇1-1&#10;鈴木花子	横浜市南区〇〇2-2&#10;..." style="min-height:100px;width:100%;font-family:var(--mono);font-size:12px;background:transparent;border:none;"></textarea>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:10px;">
+          <button class="btn btn-primary btn-sm" onclick="bulkAddClients()">✅ 一括登録</button>
+          <button class="btn btn-secondary btn-sm" onclick="toggleClientBulk()">キャンセル</button>
+        </div>
+      </div>
+
+      <div id="clientFormArea" style="display:none; margin-bottom:16px;">
+        <div class="form-row">
+          <div class="form-group">
+            <label>利用者名 *</label>
+            <input type="text" id="clientName" placeholder="例：山田 太郎" />
+          </div>
+          <div class="form-group">
+            <label>住所 *</label>
+            <input type="text" id="clientAddress" placeholder="例：横浜市中区山下町1-1" />
+          </div>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button class="btn btn-primary btn-sm" onclick="addClient()">登録</button>
+          <button class="btn btn-secondary btn-sm" onclick="closeClientForm()">キャンセル</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>氏名</th><th>住所</th><th>操作</th></tr></thead>
+          <tbody id="clientTable"><tr class="empty-row"><td colspan="3">利用者が登録されていません</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== TAB2: CSV読み込み ===== -->
+  <div class="tab-content" id="tab-csv">
+
+    <div class="alert alert-info">
+      <span>ℹ️</span>
+      <div>
+        <strong>訪問看護スケジュールCSV（Shift-JIS）に対応。</strong>
+        ファイル名に年月（例：<code>202603</code>）が含まれていれば自動判定します。
+        職員名１をメイン担当者として処理し、訪問順序は開始時間順に自動ソートします。
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">📋 CSVファイル読み込み</div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <div style="font-size:12px;color:var(--text2)">年月：</div>
+          <input type="month" id="csvYearMonth" value="2026-03" style="padding:5px 10px;font-size:12px;width:140px;" />
+        </div>
+      </div>
+
+      <label style="
+        display:flex; flex-direction:column; align-items:center; justify-content:center;
+        gap:10px; padding:32px; border:2px dashed var(--border); border-radius:var(--radius);
+        cursor:pointer; transition:border-color 0.2s; background:var(--bg);
+      " id="dropZone" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">
+        <div style="font-size:32px">📂</div>
+        <div style="font-weight:600">CSVファイルをドラッグ＆ドロップ</div>
+        <div style="font-size:12px;color:var(--text2)">または</div>
+        <button class="btn btn-secondary btn-sm" onclick="document.getElementById('csvFileInput').click();event.preventDefault()">ファイルを選択</button>
+        <div style="font-size:11px;color:var(--text3)" id="csvFileName">Shift-JIS形式のCSVに対応</div>
+        <input type="file" id="csvFileInput" accept=".csv" style="display:none" onchange="onFileSelect(event)" />
+      </label>
+
+      <div style="display:flex; gap:8px; margin-top:12px;">
+        <button class="btn btn-primary" id="parseCsvBtn" onclick="parseCsv()" disabled>📥 読み込む</button>
+        <button class="btn btn-secondary" onclick="clearCsv()">クリア</button>
+      </div>
+    </div>
+
+    <div id="csvPreview" style="display:none;">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">プレビュー <span class="badge" id="csvRowBadge">0件</span></div>
+          <button class="btn btn-primary" id="calcBtn" onclick="calculateDistances()">
+            🗺️ 距離を計算する
+          </button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>看護師</th><th>利用者</th><th>訪問日</th><th>開始時間</th><th>ステータス</th></tr></thead>
+            <tbody id="csvPreviewTable"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== TAB3: 経費入力 ===== -->
+  <div class="tab-content" id="tab-expense">
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">💴 経費入力</div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <select id="expenseMonth" style="padding:6px 10px;font-size:12px;"></select>
+        </div>
+      </div>
+
+      <div class="alert alert-info">
+        <span>ℹ️</span>
+        <div>入力内容は<strong>リアルタイムで自動保存</strong>されます。途中で閉じても再開できます。<span id="lastSavedLabel" style="margin-left:8px;color:var(--text3);font-size:11px;"></span></div>
+      </div>
+
+      <!-- 入力進捗バー -->
+      <div id="expenseProgressWrap" style="margin-bottom:16px;display:none;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+          <span style="font-size:12px;font-weight:600;">入力進捗</span>
+          <span id="expenseProgressLabel" style="font-size:12px;color:var(--text2);font-family:var(--mono);"></span>
+        </div>
+        <div class="progress-bar" style="height:8px;">
+          <div class="progress-fill" id="expenseProgressFill" style="width:0%;background:var(--accent);transition:width 0.4s;"></div>
+        </div>
+        <div id="expenseRemainingList" style="margin-top:8px;font-size:12px;color:var(--orange);"></div>
+      </div>
+
+      <div id="expenseTableWrap">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>看護師名</th>
+                <th>ガソリン代 (円)</th>
+                <th>パーキング代 (円)</th>
+                <th>立替経費 (円)</th>
+                <th>備考</th>
+                <th>小計</th>
+              </tr>
+            </thead>
+            <tbody id="expenseInputTable"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div style="margin-top:14px;display:flex;gap:8px;">
+        <button class="btn btn-primary" onclick="saveExpenses()">💾 保存</button>
+        <button class="btn btn-secondary" onclick="clearExpenses()">クリア</button>
+      </div>
+    </div>
+
+    <!-- 経費サマリ -->
+    <div class="card" id="expenseSummaryCard">
+      <div class="card-header">
+        <div class="card-title">📋 経費サマリ</div>
+      </div>
+      <div class="stats-grid" style="grid-template-columns:repeat(3,1fr);">
+        <div class="stat-card">
+          <div class="stat-label">ガソリン代合計</div>
+          <div class="stat-value" id="sumGas">—<span class="stat-unit"> 円</span></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">パーキング代合計</div>
+          <div class="stat-value" id="sumParking">—<span class="stat-unit"> 円</span></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">立替経費合計</div>
+          <div class="stat-value" id="sumOther">—<span class="stat-unit"> 円</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== TAB4: レポート ===== -->
+  <div class="tab-content" id="tab-report">
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">📊 月次レポート</div>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <select id="reportMonth" style="padding:6px 10px; font-size:12px;">
+            <option value="">-- 月を選択 --</option>
+          </select>
+          <button class="btn btn-secondary btn-sm" onclick="exportCsv()">📤 CSV出力</button>
+        </div>
+      </div>
+
+      <div class="stats-grid" id="statsGrid">
+        <div class="stat-card">
+          <div class="stat-label">総走行距離</div>
+          <div class="stat-value" id="totalKm">—<span class="stat-unit"> km</span></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">訪問件数</div>
+          <div class="stat-value" id="totalVisits">—<span class="stat-unit"> 件</span></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">稼働看護師</div>
+          <div class="stat-value" id="activeNurses">—<span class="stat-unit"> 名</span></div>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>看護師名</th><th>訪問件数</th><th>走行距離</th><th>ガソリン代</th><th>パーキング代</th><th>立替経費</th><th>合計経費</th><th>割合</th></tr></thead>
+          <tbody id="reportTable"><tr class="empty-row"><td colspan="8">計算データがありません。CSVを読み込んで距離計算を実行してください。</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 日別明細 -->
+    <div class="card" id="detailCard" style="display:none;">
+      <div class="card-header">
+        <div class="card-title">📅 日別明細</div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>日付</th><th>看護師</th><th>ルート</th><th>距離</th></tr></thead>
+          <tbody id="detailTable"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== TAB5: データ管理 ===== -->
+  <div class="tab-content" id="tab-storage">
+
+    <!-- 保存済みデータ一覧 -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">📦 保存済みデータ一覧</div>
+        <button class="btn btn-secondary btn-sm" onclick="renderStorageTab()">🔄 更新</button>
+      </div>
+      <div class="alert alert-info" style="margin-bottom:16px;">
+        <span>ℹ️</span>
+        <div>データはすべてこのブラウザに自動保存されています。バックアップを定期的にダウンロードしておくと安心です。</div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>月</th><th>スケジュール</th><th>距離計算</th><th>経費入力</th><th>操作</th></tr></thead>
+          <tbody id="storageMonthTable"><tr class="empty-row"><td colspan="5">データがありません</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- バックアップ / 復元 -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">🔒 バックアップ・復元</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:16px;">
+          <div style="font-weight:600;margin-bottom:8px;">📤 全データをバックアップ</div>
+          <div style="font-size:12px;color:var(--text2);margin-bottom:12px;">看護師・利用者マスタ、全月の経費・距離データをJSONファイルで保存します。</div>
+          <button class="btn btn-primary btn-sm" onclick="downloadBackup()">💾 バックアップをダウンロード</button>
+        </div>
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:16px;">
+          <div style="font-weight:600;margin-bottom:8px;">📥 バックアップから復元</div>
+          <div style="font-size:12px;color:var(--text2);margin-bottom:12px;">以前ダウンロードしたJSONファイルを読み込んでデータを復元します。</div>
+          <button class="btn btn-secondary btn-sm" onclick="document.getElementById('restoreInput').click()">📂 ファイルを選択して復元</button>
+          <input type="file" id="restoreInput" accept=".json" style="display:none" onchange="restoreBackup(event)" />
+        </div>
+      </div>
+    </div>
+
+    <!-- 月別削除 -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title" style="color:var(--red);">⚠️ データ削除</div>
+      </div>
+      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+        <select id="deleteTargetMonth" style="padding:6px 10px;font-size:12px;"></select>
+        <button class="btn btn-danger" onclick="deleteMonthData()">選択月のデータを削除</button>
+        <button class="btn btn-danger" onclick="deleteAllData()" style="margin-left:auto;">全データをリセット</button>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<script>
+// ============================================================
+// STATE
+// ============================================================
+let calcAborted = false;
+
+function stopCalculation() {
+  calcAborted = true;
+  updateLoadingText('中断しています...');
+}
+
+let apiKey = localStorage.getItem('gmaps_api_key') || '';
+let nurses = JSON.parse(localStorage.getItem('nurses') || '[]');
+let clients = JSON.parse(localStorage.getItem('clients') || '[]');
+let scheduleRows = [];
+let results = [];
+
+// init
+updateApiStatus();
+renderNurseTable();
+renderClientTable();
+initReportMonths();
+initExpenseMonths();
+
+// ============================================================
+// API KEY
+// ============================================================
+function openApiModal() {
+  document.getElementById('apiKeyInput').value = apiKey;
+  document.getElementById('apiModal').classList.add('open');
+}
+function closeApiModal() {
+  document.getElementById('apiModal').classList.remove('open');
+}
+function saveApiKey() {
+  const val = document.getElementById('apiKeyInput').value.trim();
+  if (!val) { alert('APIキーを入力してください'); return; }
+  apiKey = val;
+  localStorage.setItem('gmaps_api_key', val);
+  updateApiStatus();
+  closeApiModal();
+}
+
+function testGasConnection() {
+  const key = document.getElementById('apiKeyInput').value.trim();
+  if (!key) { alert('先にAPIキーを入力してください'); return; }
+  const resultEl = document.getElementById('gasTestResult');
+  resultEl.style.display = 'block';
+  resultEl.style.color = 'var(--text2)';
+  resultEl.textContent = '🔄 テスト中...';
+
+  const timer = setTimeout(() => {
+    resultEl.style.color = 'var(--red)';
+    resultEl.textContent = '❌ 接続失敗: タイムアウト（20秒）';
+  }, 20000);
+
+  google.script.run
+    .withSuccessHandler(data => {
+      clearTimeout(timer);
+      if (data.status !== 'OK') {
+        resultEl.style.color = 'var(--red)';
+        resultEl.textContent = `❌ Maps API エラー: ${data.status} ${data.error_message||''}`;
+        return;
+      }
+      const elem = data.rows[0]?.elements[0];
+      if (!elem || elem.status !== 'OK') {
+        resultEl.style.color = 'var(--red)';
+        resultEl.textContent = `❌ ルート取得失敗: ${elem?.status}`;
+        return;
+      }
+      const km = Math.round(elem.distance.value / 100) / 10;
+      resultEl.style.color = 'var(--accent)';
+      resultEl.textContent = `✅ 接続成功！テスト距離: ${km}km`;
+    })
+    .withFailureHandler(err => {
+      clearTimeout(timer);
+      resultEl.style.color = 'var(--red)';
+      resultEl.textContent = `❌ 接続失敗: ${err.message}`;
+    })
+    .getDistance('横浜市西区高島2-16-1', '横浜市中区山下町1-1', key);
+}
+function updateApiStatus() {
+  const dot = document.getElementById('apiDot');
+  const txt = document.getElementById('apiStatusText');
+  if (apiKey) {
+    dot.classList.add('active');
+    txt.textContent = 'API設定済み';
+  } else {
+    dot.classList.remove('active');
+    txt.textContent = 'APIキー未設定';
+  }
+}
+
+// ============================================================
+// TABS
+// ============================================================
+function switchTab(name) {
+  const names = ['master','csv','expense','report','storage'];
+  document.querySelectorAll('.tab').forEach((t,i) => {
+    t.classList.toggle('active', names[i] === name);
+  });
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  if (name === 'report') renderReport();
+  if (name === 'expense') renderExpenseTable();
+  if (name === 'storage') renderStorageTab();
+}
+
+// ============================================================
+// BULK REGISTER
+// ============================================================
+function toggleNurseBulk() {
+  const area = document.getElementById('nurseBulkArea');
+  area.style.display = area.style.display === 'none' ? 'block' : 'none';
+  document.getElementById('nurseFormArea').style.display = 'none';
+}
+function toggleClientBulk() {
+  const area = document.getElementById('clientBulkArea');
+  area.style.display = area.style.display === 'none' ? 'block' : 'none';
+  document.getElementById('clientFormArea').style.display = 'none';
+}
+
+function bulkAddNurses() {
+  const raw = document.getElementById('nurseBulkInput').value.trim();
+  if (!raw) { alert('データを入力してください'); return; }
+  const lines = raw.split('\n').filter(l => l.trim());
+  let added = 0, skipped = 0;
+  lines.forEach(line => {
+    const cols = line.split('\t').map(c => c.trim());
+    if (cols.length < 2) { skipped++; return; }
+    const [name, typeRaw, address] = cols;
+    if (!name || !address) { skipped++; return; }
+    if (nurses.find(n => n.name === name)) { skipped++; return; }
+    const employType = (typeRaw || '').includes('委託') ? 'contract' : 'employee';
+    nurses.push({ id: Date.now() + added, name, address, employType });
+    added++;
+  });
+  saveData();
+  renderNurseTable();
+  document.getElementById('nurseBulkInput').value = '';
+  document.getElementById('nurseBulkArea').style.display = 'none';
+  alert(`✅ ${added}名を登録しました。${skipped > 0 ? `（${skipped}件スキップ）` : ''}`);
+}
+
+function bulkAddClients() {
+  const raw = document.getElementById('clientBulkInput').value.trim();
+  if (!raw) { alert('データを入力してください'); return; }
+  const lines = raw.split('\n').filter(l => l.trim());
+  let added = 0, skipped = 0;
+  lines.forEach(line => {
+    const cols = line.split('\t').map(c => c.trim());
+    if (cols.length < 2) { skipped++; return; }
+    const [name, address] = cols;
+    if (!name || !address) { skipped++; return; }
+    if (clients.find(c => c.name === name)) { skipped++; return; }
+    clients.push({ id: Date.now() + added, name, address });
+    added++;
+  });
+  saveData();
+  renderClientTable();
+  document.getElementById('clientBulkInput').value = '';
+  document.getElementById('clientBulkArea').style.display = 'none';
+  alert(`✅ ${added}名を登録しました。${skipped > 0 ? `（${skipped}件スキップ）` : ''}`);
+}
+
+
+// ============================================================
+function openNurseForm() { document.getElementById('nurseFormArea').style.display = 'block'; }
+function closeNurseForm() { document.getElementById('nurseFormArea').style.display = 'none'; }
+
+function addNurse() {
+  const name = document.getElementById('nurseName').value.trim();
+  const addr = document.getElementById('nurseAddress').value.trim();
+  const employType = document.getElementById('nurseEmployType').value;
+  if (!name || !addr) { alert('名前と住所を入力してください'); return; }
+  nurses.push({ id: Date.now(), name, address: addr, employType });
+  saveData();
+  renderNurseTable();
+  document.getElementById('nurseName').value = '';
+  document.getElementById('nurseAddress').value = '';
+  document.getElementById('nurseEmployType').value = 'employee';
+  closeNurseForm();
+}
+
+function deleteNurse(id) {
+  if (!confirm('削除しますか？')) return;
+  nurses = nurses.filter(n => n.id !== id);
+  saveData();
+  renderNurseTable();
+}
+
+function renderNurseTable() {
+  const tbody = document.getElementById('nurseTable');
+  document.getElementById('nurseBadge').textContent = nurses.length + '名';
+  if (!nurses.length) {
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="4">看護師が登録されていません</td></tr>';
+    return;
+  }
+  tbody.innerHTML = nurses.map(n => {
+    const typeLabel = n.employType === 'contract'
+      ? `<span class="tag tag-orange">委託</span>`
+      : `<span class="tag tag-blue">正社員</span>`;
+    return `
+      <tr>
+        <td><strong>${n.name}</strong></td>
+        <td>${typeLabel}</td>
+        <td style="color:var(--text2)">${n.address}</td>
+        <td><button class="btn btn-danger btn-sm" onclick="deleteNurse(${n.id})">削除</button></td>
+      </tr>
+    `;
+  }).join('');
+}
+
+// ============================================================
+// CLIENT MASTER
+// ============================================================
+function openClientForm() { document.getElementById('clientFormArea').style.display = 'block'; }
+function closeClientForm() { document.getElementById('clientFormArea').style.display = 'none'; }
+
+function addClient() {
+  const name = document.getElementById('clientName').value.trim();
+  const addr = document.getElementById('clientAddress').value.trim();
+  if (!name || !addr) { alert('名前と住所を入力してください'); return; }
+  clients.push({ id: Date.now(), name, address: addr });
+  saveData();
+  renderClientTable();
+  document.getElementById('clientName').value = '';
+  document.getElementById('clientAddress').value = '';
+  closeClientForm();
+}
+
+function deleteClient(id) {
+  if (!confirm('削除しますか？')) return;
+  clients = clients.filter(c => c.id !== id);
+  saveData();
+  renderClientTable();
+}
+
+function renderClientTable() {
+  const tbody = document.getElementById('clientTable');
+  document.getElementById('clientBadge').textContent = clients.length + '名';
+  if (!clients.length) {
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="3">利用者が登録されていません</td></tr>';
+    return;
+  }
+  tbody.innerHTML = clients.map(c => `
+    <tr>
+      <td><strong>${c.name}</strong></td>
+      <td style="color:var(--text2)">${c.address}</td>
+      <td><button class="btn btn-danger btn-sm" onclick="deleteClient(${c.id})">削除</button></td>
+    </tr>
+  `).join('');
+}
+
+function saveData() {
+  localStorage.setItem('nurses', JSON.stringify(nurses));
+  localStorage.setItem('clients', JSON.stringify(clients));
+}
+
+// ============================================================
+// CSV FILE HANDLING
+// ============================================================
+let csvRawBuffer = null; // ArrayBuffer of uploaded file
+
+function onDragOver(e) {
+  e.preventDefault();
+  document.getElementById('dropZone').style.borderColor = 'var(--blue)';
+}
+function onDragLeave(e) {
+  document.getElementById('dropZone').style.borderColor = 'var(--border)';
+}
+function onDrop(e) {
+  e.preventDefault();
+  document.getElementById('dropZone').style.borderColor = 'var(--border)';
+  const file = e.dataTransfer.files[0];
+  if (file) loadCsvFile(file);
+}
+function onFileSelect(e) {
+  const file = e.target.files[0];
+  if (file) loadCsvFile(file);
+}
+
+function loadCsvFile(file) {
+  csvRawBuffer = null;
+  document.getElementById('csvFileName').textContent = file.name;
+
+  // ファイル名から年月を自動判定（例: 202603 → 2026-03）
+  const m = file.name.match(/(\d{4})(\d{2})/);
+  if (m) {
+    document.getElementById('csvYearMonth').value = `${m[1]}-${m[2]}`;
+  }
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    csvRawBuffer = e.target.result;
+    document.getElementById('parseCsvBtn').disabled = false;
+    document.getElementById('parseCsvBtn').textContent = '📥 読み込む（' + file.name + '）';
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// Shift-JIS / CP932 デコーダ（TextDecoderがcp932未対応の環境用フォールバック付き）
+function decodeCp932(buffer) {
+  try {
+    return new TextDecoder('shift_jis').decode(buffer);
+  } catch(e) {
+    return new TextDecoder('utf-8').decode(buffer);
+  }
+}
+
+// CSV文字列をパース（ダブルクォート対応）
+function parseCsvText(text) {
+  const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+  return lines.map(line => {
+    const cols = [];
+    let cur = '', inQ = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (c === '"') { inQ = !inQ; }
+      else if (c === ',' && !inQ) { cols.push(cur.trim()); cur = ''; }
+      else { cur += c; }
+    }
+    cols.push(cur.trim());
+    return cols;
+  }).filter(r => r.some(c => c !== ''));
+}
+
+function clearCsv() {
+  csvRawBuffer = null;
+  scheduleRows = [];
+  document.getElementById('csvFileName').textContent = 'Shift-JIS形式のCSVに対応';
+  document.getElementById('csvFileInput').value = '';
+  document.getElementById('parseCsvBtn').disabled = true;
+  document.getElementById('parseCsvBtn').textContent = '📥 読み込む';
+  document.getElementById('csvPreview').style.display = 'none';
+}
+
+function parseCsv() {
+  if (!csvRawBuffer) { alert('CSVファイルを選択してください'); return; }
+
+  const text = decodeCp932(csvRawBuffer);
+  const rows = parseCsvText(text);
+  if (rows.length < 2) { alert('データが見つかりません'); return; }
+
+  const yearMonth = document.getElementById('csvYearMonth').value; // "2026-03"
+  if (!yearMonth) { alert('年月を指定してください'); return; }
+
+  // ヘッダー行を確認して列インデックスを特定
+  const header = rows[0];
+  const idx = {
+    nurse1:   header.indexOf('職員名１'),
+    date:     header.indexOf('日付'),
+    client:   header.indexOf('利用者'),
+    startTime:header.indexOf('開始時間'),
+    endTime:  header.indexOf('終了時間'),
+  };
+
+  // 旧フォーマット（看護師名,利用者名,訪問日,訪問時間,訪問順序）にも対応
+  const isOldFormat = idx.nurse1 === -1;
+  if (isOldFormat) {
+    // 旧フォーマット処理
+    scheduleRows = [];
+    const errors = [];
+    rows.slice(1).forEach((cols, i) => {
+      if (cols.length < 4) return;
+      const [nurseName, clientName, date, time, order] = cols;
+      const nurse = nurses.find(n => n.name === nurseName);
+      const client = clients.find(c => c.name === clientName);
+      scheduleRows.push({ nurseName, clientName, date, time, order: parseInt(order)||1, nurseFound:!!nurse, clientFound:!!client, nurse, client });
+    });
+    renderCsvPreview();
+    return;
+  }
+
+  // 新フォーマット（実際のスケジュールCSV）
+  scheduleRows = [];
+  const unmatched = { nurses: new Set(), clients: new Set() };
+
+  rows.slice(1).forEach((cols) => {
+    const nurseName = (cols[idx.nurse1] || '').replace(/\u3000/g, '　').trim();
+    if (!nurseName) return;
+
+    const dayStr = (cols[idx.date] || '').trim();
+    if (!dayStr || isNaN(parseInt(dayStr))) return;
+    const day = String(parseInt(dayStr)).padStart(2, '0');
+    const date = `${yearMonth}-${day}`;
+
+    const clientName = (cols[idx.client] || '').replace(/\u3000/g, '　').trim();
+    const startTime  = (cols[idx.startTime] || '').trim();
+
+    // マスタ照合（全角スペース正規化して比較）
+    const normalize = s => s.replace(/[\u3000\s]/g, '');
+    const nurse  = nurses.find(n => normalize(n.name) === normalize(nurseName));
+    const client = clients.find(c => normalize(c.name) === normalize(clientName));
+
+    if (!nurse)  unmatched.nurses.add(nurseName);
+    if (!client) unmatched.clients.add(clientName);
+
+    scheduleRows.push({
+      nurseName, clientName, date, time: startTime, order: 0,
+      nurseFound: !!nurse, clientFound: !!client, nurse, client
+    });
+  });
+
+  // 開始時間でソート（同一看護師・同一日内）
+  scheduleRows.sort((a, b) => {
+    if (a.nurseName !== b.nurseName) return a.nurseName.localeCompare(b.nurseName);
+    if (a.date !== b.date) return a.date.localeCompare(b.date);
+    return a.time.localeCompare(b.time);
+  });
+  scheduleRows.forEach((r, i) => r.order = i + 1);
+
+  renderCsvPreview();
+  syncReportMonth(yearMonth);
+
+  const warns = [];
+  if (unmatched.nurses.size) warns.push(`未登録の看護師 ${unmatched.nurses.size}名:\n  ${[...unmatched.nurses].join('\n  ')}`);
+  if (unmatched.clients.size) warns.push(`未登録の利用者 ${unmatched.clients.size}名:\n  ${[...unmatched.clients].join('\n  ')}`);
+  if (warns.length) {
+    const msg = warns.join('\n\n') + '\n\n👆 マスタ登録タブで住所を登録すると距離計算できます。';
+    setTimeout(() => alert('⚠ 未登録あり\n\n' + msg), 100);
+  }
+}
+
+function renderCsvPreview() {
+  document.getElementById('csvPreview').style.display = 'block';
+  document.getElementById('csvRowBadge').textContent = scheduleRows.length + '件';
+
+  const tbody = document.getElementById('csvPreviewTable');
+  tbody.innerHTML = scheduleRows.map((r) => {
+    const statusHtml = (!r.nurseFound || !r.clientFound)
+      ? `<span class="tag tag-red">⚠ ${!r.nurseFound ? '看護師未登録' : '利用者未登録'}</span>`
+      : `<span class="tag tag-green">✓ OK</span>`;
+    return `
+      <tr>
+        <td>${r.nurseFound ? r.nurseName : `<span style="color:var(--red)">${r.nurseName}</span>`}</td>
+        <td>${r.clientFound ? r.clientName : `<span style="color:var(--red)">${r.clientName}</span>`}</td>
+        <td>${r.date}</td>
+        <td>${r.time}</td>
+        <td>${statusHtml}</td>
+      </tr>
+    `;
+  }).join('');
+}
+
+// ============================================================
+// DISTANCE CALCULATION
+// ============================================================
+async function calculateDistances() {
+  if (!apiKey) { openApiModal(); return; }
+
+  const invalidRows = scheduleRows.filter(r => !r.nurseFound || !r.clientFound);
+  if (invalidRows.length > 0) {
+    if (!confirm(`${invalidRows.length}件のデータに未登録の看護師/利用者があります。\nそれらをスキップして計算しますか？`)) return;
+  }
+
+  const validRows = scheduleRows.filter(r => r.nurseFound && r.clientFound);
+  if (!validRows.length) { alert('計算できる有効なデータがありません'); return; }
+
+  // Group by nurse + date
+  const groups = {};
+  validRows.forEach(r => {
+    const key = `${r.nurseName}__${r.date}`;
+    if (!groups[key]) groups[key] = { nurse: r.nurse, date: r.date, nurseName: r.nurseName, visits: [] };
+    groups[key].visits.push({ client: r.client, time: r.time, order: r.order });
+  });
+
+  // Sort visits by order within each group
+  Object.values(groups).forEach(g => {
+    g.visits.sort((a, b) => a.order - b.order);
+  });
+
+  showLoading(true);
+  calcAborted = false;
+  results = JSON.parse(localStorage.getItem('results') || '[]');
+
+  const groupList = Object.values(groups);
+  let processed = 0;
+  let successCount = 0;
+  const failedGroups = [];
+
+  for (const group of groupList) {
+    if (calcAborted) break;
+    updateLoadingText(`計算中... (${++processed}/${groupList.length})  ${group.nurseName} ${group.date}`);
+    try {
+      const waypoints = [group.nurse.address, ...group.visits.map(v => v.client.address), group.nurse.address];
+      const distKm = await getRouteDistance(waypoints);
+
+      const existingIdx = results.findIndex(r => r.nurseName === group.nurseName && r.date === group.date);
+      const entry = {
+        date: group.date,
+        nurseName: group.nurseName,
+        route: [group.nurseName + '(自宅)', ...group.visits.map(v => v.client.name), group.nurseName + '(自宅)'],
+        distanceKm: distKm,
+        visitCount: group.visits.length
+      };
+      if (existingIdx >= 0) results[existingIdx] = entry;
+      else results.push(entry);
+      successCount++;
+    } catch(e) {
+      failedGroups.push(`${group.nurseName} ${group.date}: ${e.message}`);
+    }
+    await sleep(300);
+  }
+
+  localStorage.setItem('results', JSON.stringify(results));
+  showLoading(false);
+
+  if (calcAborted) {
+    alert(`⏹ 計算を中断しました。\n${successCount}件分の結果は保存されています。`);
+  } else {
+    let msg = `✅ 計算完了！ ${successCount}/${groupList.length} ルートの距離を取得しました。`;
+    if (failedGroups.length) {
+      msg += `\n\n⚠ 失敗 ${failedGroups.length}件:\n` + failedGroups.slice(0,5).join('\n');
+      if (failedGroups.length > 5) msg += `\n...他${failedGroups.length-5}件`;
+    }
+    alert(msg);
+  }
+  syncReportMonth(Object.values(groups)[0]?.date?.substring(0,7) || '');
+  switchTab('report');
+}
+
+
+
+
+async function callDistanceMatrixAPI(origin, destination) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('タイムアウト（20秒）')), 20000);
+    google.script.run
+      .withSuccessHandler(data => {
+        clearTimeout(timer);
+        if (data.status !== 'OK') { reject(new Error(`Maps API: ${data.status} ${data.error_message||''}`)); return; }
+        const element = data.rows[0]?.elements[0];
+        if (!element || element.status !== 'OK') { reject(new Error(`ルート不明: ${element?.status}`)); return; }
+        resolve(element.distance.value);
+      })
+      .withFailureHandler(err => {
+        clearTimeout(timer);
+        reject(new Error(err.message || 'GASエラー'));
+      })
+      .getDistance(origin, destination, apiKey);
+  });
+}
+
+async function getRouteDistance(waypoints) {
+  let totalMeters = 0;
+  for (let i = 0; i < waypoints.length - 1; i++) {
+    const meters = await callDistanceMatrixAPI(waypoints[i], waypoints[i+1]);
+    totalMeters += meters;
+  }
+  return Math.round(totalMeters / 100) / 10;
+}
+
+// ============================================================
+// DATA STORAGE MANAGEMENT
+// ============================================================
+function getAllMonths() {
+  const results = JSON.parse(localStorage.getItem('results') || '[]');
+  const expenses = JSON.parse(localStorage.getItem('expenses') || '{}');
+  const months = new Set();
+  results.forEach(r => { if (r.date) months.add(r.date.substring(0,7)); });
+  Object.keys(expenses).forEach(m => months.add(m));
+  return [...months].sort();
+}
+
+function renderStorageTab() {
+  const months = getAllMonths();
+  const results = JSON.parse(localStorage.getItem('results') || '[]');
+  const expenses = JSON.parse(localStorage.getItem('expenses') || '{}');
+
+  // 月一覧テーブル
+  const tbody = document.getElementById('storageMonthTable');
+  if (!months.length) {
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="5">保存データがありません</td></tr>';
+  } else {
+    tbody.innerHTML = months.map(m => {
+      const [y, mo] = m.split('-');
+      const monthLabel = `${y}年${parseInt(mo)}月`;
+      const schedCount = results.filter(r => r.date.startsWith(m)).length;
+      const distCount  = results.filter(r => r.date.startsWith(m) && r.distanceKm > 0).length;
+      const expKeys    = Object.keys(expenses[m] || {});
+      const hasExp     = expKeys.length > 0;
+      return `
+        <tr>
+          <td><strong>${monthLabel}</strong></td>
+          <td>${schedCount > 0
+            ? `<span class="tag tag-green">${schedCount}日分</span>`
+            : `<span style="color:var(--text3)">—</span>`}</td>
+          <td>${distCount > 0
+            ? `<span class="tag tag-blue">${distCount}ルート</span>`
+            : `<span style="color:var(--text3)">—</span>`}</td>
+          <td>${hasExp
+            ? `<span class="tag tag-orange">${expKeys.length}名分</span>`
+            : `<span style="color:var(--text3)">—</span>`}</td>
+          <td>
+            <button class="btn btn-secondary btn-sm" onclick="exportMonthCsv('${m}')">📤 CSV</button>
+            <button class="btn btn-secondary btn-sm" onclick="exportMonthJson('${m}')" style="margin-left:4px;">💾 JSON</button>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  // 削除用セレクト更新
+  const sel = document.getElementById('deleteTargetMonth');
+  sel.innerHTML = '<option value="">-- 月を選択 --</option>';
+  months.forEach(m => {
+    const [y, mo] = m.split('-');
+    const opt = document.createElement('option');
+    opt.value = m;
+    opt.textContent = `${y}年${parseInt(mo)}月`;
+    sel.appendChild(opt);
+  });
+}
+
+// 月別JSONエクスポート
+function exportMonthJson(month) {
+  const results = JSON.parse(localStorage.getItem('results') || '[]');
+  const expenses = JSON.parse(localStorage.getItem('expenses') || '{}');
+  const data = {
+    month,
+    exportedAt: new Date().toISOString(),
+    results: results.filter(r => r.date.startsWith(month)),
+    expenses: expenses[month] || {}
+  };
+  downloadJson(data, `kango_${month}.json`);
+}
+
+// 月別CSVエクスポート（レポートタブと同じ内容）
+function exportMonthCsv(month) {
+  const sel = document.getElementById('reportMonth');
+  if (sel) sel.value = month;
+  exportCsv();
+}
+
+// 全データバックアップ
+function downloadBackup() {
+  const data = {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    nurses:   JSON.parse(localStorage.getItem('nurses')   || '[]'),
+    clients:  JSON.parse(localStorage.getItem('clients')  || '[]'),
+    results:  JSON.parse(localStorage.getItem('results')  || '[]'),
+    expenses: JSON.parse(localStorage.getItem('expenses') || '{}'),
+  };
+  downloadJson(data, `kango_backup_${new Date().toISOString().slice(0,10)}.json`);
+}
+
+function downloadJson(data, filename) {
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = filename;
+  a.click(); URL.revokeObjectURL(url);
+}
+
+// バックアップ復元
+function restoreBackup(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      if (!data.version) throw new Error('形式が違います');
+      if (!confirm(`バックアップ（${data.exportedAt?.slice(0,10)}）から復元しますか？\n現在のデータは上書きされます。`)) return;
+      if (data.nurses)   { localStorage.setItem('nurses',   JSON.stringify(data.nurses));   nurses = data.nurses; }
+      if (data.clients)  { localStorage.setItem('clients',  JSON.stringify(data.clients));  clients = data.clients; }
+      if (data.results)  { localStorage.setItem('results',  JSON.stringify(data.results));  results = data.results; }
+      if (data.expenses) { localStorage.setItem('expenses', JSON.stringify(data.expenses)); }
+      renderNurseTable();
+      renderClientTable();
+      renderStorageTab();
+      alert('✅ 復元しました！');
+    } catch(err) {
+      alert('❌ 復元に失敗しました: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+}
+
+// 月別削除
+function deleteMonthData() {
+  const month = document.getElementById('deleteTargetMonth').value;
+  if (!month) { alert('月を選択してください'); return; }
+  const [y, mo] = month.split('-');
+  if (!confirm(`${y}年${parseInt(mo)}月のデータ（距離計算・経費）を削除しますか？`)) return;
+
+  const results = JSON.parse(localStorage.getItem('results') || '[]');
+  localStorage.setItem('results', JSON.stringify(results.filter(r => !r.date.startsWith(month))));
+
+  const expenses = JSON.parse(localStorage.getItem('expenses') || '{}');
+  delete expenses[month];
+  localStorage.setItem('expenses', JSON.stringify(expenses));
+
+  renderStorageTab();
+  alert(`✅ ${y}年${parseInt(mo)}月のデータを削除しました`);
+}
+
+// 全リセット
+function deleteAllData() {
+  if (!confirm('⚠ 全データ（マスタ含む）を削除します。本当によろしいですか？')) return;
+  if (!confirm('本当に削除しますか？この操作は元に戻せません。')) return;
+  ['nurses','clients','results','expenses'].forEach(k => localStorage.removeItem(k));
+  nurses = []; clients = []; results = [];
+  renderNurseTable(); renderClientTable(); renderStorageTab();
+  alert('✅ 全データをリセットしました');
+}
+
+
+function showLoading(show) {
+  document.getElementById('loadingOverlay').classList.toggle('open', show);
+}
+function updateLoadingText(t) {
+  updateLoadingText._current = t;
+  const el = document.getElementById('loadingText');
+  if (el) el.textContent = t;
+}
+
+// ============================================================
+// EXPENSE
+// ============================================================
+function initExpenseMonths() {
+  const sel = document.getElementById('expenseMonth');
+  for (let m = 1; m <= 12; m++) {
+    const val = `2026-${String(m).padStart(2,'0')}`;
+    const opt = document.createElement('option');
+    opt.value = val;
+    opt.textContent = `2026年${m}月`;
+    sel.appendChild(opt);
+  }
+  sel.value = '2026-05';
+  sel.addEventListener('change', renderExpenseTable);
+}
+
+function getExpenses() {
+  return JSON.parse(localStorage.getItem('expenses') || '{}');
+}
+
+function renderExpenseTable() {
+  const month = document.getElementById('expenseMonth').value;
+  const expenses = getExpenses();
+  const monthData = expenses[month] || {};
+  const allResults = JSON.parse(localStorage.getItem('results') || '[]');
+  const tbody = document.getElementById('expenseInputTable');
+
+  if (!nurses.length) {
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="6">看護師マスタに看護師を登録してください</td></tr>';
+    updateExpenseSummary(month);
+    return;
+  }
+
+  tbody.innerHTML = nurses.map(n => {
+    const e = monthData[n.name] || { gas: '', parking: '', other: '', note: '' };
+    const isContract = n.employType === 'contract';
+
+    // 委託スタッフ：月の走行距離合計×20円を自動計算
+    let autoGas = '';
+    let autoGasVal = 0;
+    if (isContract) {
+      const totalKm = allResults
+        .filter(r => r.date.startsWith(month) && r.nurseName === n.name)
+        .reduce((s, r) => s + (r.distanceKm || 0), 0);
+      autoGasVal = Math.round(totalKm * 20);
+      autoGas = autoGasVal;
+      // 委託の場合は自動値をexpensesにも反映
+      if (!monthData[n.name]) monthData[n.name] = { gas: '', parking: '', other: '', note: '' };
+      monthData[n.name].gas = String(autoGasVal);
+    }
+
+    const gasVal = isContract ? autoGasVal : (parseInt(e.gas) || 0);
+    const subtotal = gasVal + (parseInt(e.parking)||0) + (parseInt(e.other)||0);
+    const typeTag = isContract
+      ? `<span class="tag tag-orange" style="font-size:10px;">委託</span>`
+      : `<span class="tag tag-blue" style="font-size:10px;">正社員</span>`;
+
+    const gasCell = isContract
+      ? `<td style="font-family:var(--mono);text-align:right;color:var(--text2);">
+           ¥${autoGasVal.toLocaleString()}
+           <div style="font-size:10px;color:var(--text3);">距離×20円 (自動)</div>
+         </td>`
+      : `<td><input type="number" min="0" class="expense-input${e.gas ? ' filled' : ''}" data-nurse="${n.name}" data-field="gas"
+           value="${e.gas}" placeholder="0" style="width:100%;text-align:right;"
+           oninput="onExpenseInput(this)" /></td>`;
+
+    return `
+      <tr>
+        <td><strong>${n.name}</strong> ${typeTag}</td>
+        ${gasCell}
+        <td><input type="number" min="0" class="expense-input${e.parking ? ' filled' : ''}" data-nurse="${n.name}" data-field="parking"
+          value="${e.parking}" placeholder="0" style="width:100%;text-align:right;"
+          oninput="onExpenseInput(this)" /></td>
+        <td><input type="number" min="0" class="expense-input${e.other ? ' filled' : ''}" data-nurse="${n.name}" data-field="other"
+          value="${e.other}" placeholder="0" style="width:100%;text-align:right;"
+          oninput="onExpenseInput(this)" /></td>
+        <td><input type="text" class="expense-input${e.note ? ' filled' : ''}" data-nurse="${n.name}" data-field="note"
+          value="${e.note}" placeholder="メモ" style="width:100%;"
+          oninput="onExpenseInput(this)" /></td>
+        <td id="subtotal-${n.name.replace(/[\s　]/g,'_')}" style="font-family:var(--mono);font-weight:600;color:var(--orange)">
+          ${subtotal > 0 ? '¥' + subtotal.toLocaleString() : '—'}
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  // 委託スタッフの自動計算値を保存
+  const updatedExpenses = getExpenses();
+  if (!updatedExpenses[month]) updatedExpenses[month] = {};
+  nurses.filter(n => n.employType === 'contract').forEach(n => {
+    const totalKm = allResults
+      .filter(r => r.date.startsWith(month) && r.nurseName === n.name)
+      .reduce((s, r) => s + (r.distanceKm || 0), 0);
+    if (!updatedExpenses[month][n.name]) updatedExpenses[month][n.name] = { gas:'', parking:'', other:'', note:'' };
+    updatedExpenses[month][n.name].gas = String(Math.round(totalKm * 20));
+  });
+  localStorage.setItem('expenses', JSON.stringify(updatedExpenses));
+
+  updateExpenseSummary(month);
+  updateExpenseProgress(month);
+}
+
+function onExpenseInput(el) {
+  const month = document.getElementById('expenseMonth').value;
+  const nurseName = el.dataset.nurse;
+  const field = el.dataset.field;
+  const val = el.value;
+
+  // 入力済みスタイル
+  if (val !== '') el.classList.add('filled');
+  else el.classList.remove('filled');
+
+  const expenses = getExpenses();
+  if (!expenses[month]) expenses[month] = {};
+  if (!expenses[month][nurseName]) expenses[month][nurseName] = { gas:'', parking:'', other:'', note:'' };
+  expenses[month][nurseName][field] = val;
+  localStorage.setItem('expenses', JSON.stringify(expenses));
+
+  // Update subtotal cell
+  const e = expenses[month][nurseName];
+  const sub = (parseInt(e.gas)||0) + (parseInt(e.parking)||0) + (parseInt(e.other)||0);
+  const cell = document.getElementById('subtotal-' + nurseName.replace(/[\s　]/g,'_'));
+  if (cell) cell.textContent = sub > 0 ? '¥' + sub.toLocaleString() : '—';
+
+  updateExpenseSummary(month);
+  updateExpenseProgress(month);
+  showLastSaved();
+}
+
+function updateExpenseSummary(month) {
+  const expenses = getExpenses();
+  const monthData = expenses[month] || {};
+  let gas = 0, parking = 0, other = 0;
+  Object.values(monthData).forEach(e => {
+    gas += parseInt(e.gas) || 0;
+    parking += parseInt(e.parking) || 0;
+    other += parseInt(e.other) || 0;
+  });
+  document.getElementById('sumGas').innerHTML = `${gas.toLocaleString()}<span class="stat-unit"> 円</span>`;
+  document.getElementById('sumParking').innerHTML = `${parking.toLocaleString()}<span class="stat-unit"> 円</span>`;
+  document.getElementById('sumOther').innerHTML = `${other.toLocaleString()}<span class="stat-unit"> 円</span>`;
+}
+
+function updateExpenseProgress(month) {
+  if (!nurses.length) return;
+  const expenses = getExpenses();
+  const monthData = expenses[month] || {};
+
+  // 正社員：ガソリン代が入力済みかどうか、委託：パーキング or その他 or 入力不要
+  const total = nurses.length;
+  const remaining = [];
+
+  nurses.forEach(n => {
+    const e = monthData[n.name] || {};
+    const isContract = n.employType === 'contract';
+    // 正社員はガソリン代が空なら未完了、委託はガソリン自動なのでパーキング+立替で判断（任意なので入力されていれば完了扱い）
+    const done = isContract
+      ? true  // 委託は自動計算なので常に「完了」扱い
+      : (e.gas !== '' && e.gas !== undefined && e.gas !== null);
+    if (!done) remaining.push(n.name);
+  });
+
+  const done = total - remaining.length;
+  const pct = total > 0 ? Math.round(done / total * 100) : 0;
+
+  const wrap = document.getElementById('expenseProgressWrap');
+  const fill = document.getElementById('expenseProgressFill');
+  const label = document.getElementById('expenseProgressLabel');
+  const remList = document.getElementById('expenseRemainingList');
+
+  wrap.style.display = 'block';
+  fill.style.width = pct + '%';
+  fill.style.background = pct === 100 ? 'var(--accent)' : pct > 50 ? 'var(--blue)' : 'var(--orange)';
+  label.textContent = `${done} / ${total} 名完了`;
+
+  if (remaining.length > 0) {
+    remList.innerHTML = `⏳ 未入力（正社員・ガソリン代）: ${remaining.join('、')}`;
+  } else {
+    remList.innerHTML = `<span style="color:var(--accent)">✅ 全員入力済み</span>`;
+  }
+}
+
+function showLastSaved() {
+  const now = new Date();
+  const hm = `${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+  const el = document.getElementById('lastSavedLabel');
+  if (el) el.textContent = `最終保存 ${hm}`;
+}
+
+function saveExpenses() {
+  alert('✅ 経費を保存しました。');
+}
+
+function clearExpenses() {
+  const month = document.getElementById('expenseMonth').value;
+  if (!confirm(`${month}の経費データをクリアしますか？`)) return;
+  const expenses = getExpenses();
+  delete expenses[month];
+  localStorage.setItem('expenses', JSON.stringify(expenses));
+  renderExpenseTable();
+}
+
+// ============================================================
+// ============================================================
+function initReportMonths() {
+  const sel = document.getElementById('reportMonth');
+  // 既存optionをクリア（-- 月を選択 -- は残す）
+  while (sel.options.length > 1) sel.remove(1);
+  for (let m = 1; m <= 12; m++) {
+    const val = `2026-${String(m).padStart(2,'0')}`;
+    const opt = document.createElement('option');
+    opt.value = val;
+    opt.textContent = `2026年${m}月`;
+    sel.appendChild(opt);
+  }
+  sel.addEventListener('change', renderReport);
+}
+
+// CSV読み込み後にレポート月を自動連動させる
+function syncReportMonth(yearMonth) {
+  const sel = document.getElementById('reportMonth');
+  if (sel && yearMonth) {
+    sel.value = yearMonth;
+    renderReport();
+  }
+}
+
+function renderReport() {
+  const month = document.getElementById('reportMonth').value;
+  const allResults = JSON.parse(localStorage.getItem('results') || '[]');
+  const filtered = month ? allResults.filter(r => r.date.startsWith(month)) : allResults;
+  const expenses = getExpenses();
+  const monthExpenses = expenses[month] || {};
+
+  // Aggregate by nurse
+  const byNurse = {};
+  filtered.forEach(r => {
+    if (!byNurse[r.nurseName]) byNurse[r.nurseName] = { name: r.nurseName, km: 0, visits: 0, days: 0 };
+    byNurse[r.nurseName].km += r.distanceKm;
+    byNurse[r.nurseName].visits += r.visitCount;
+    byNurse[r.nurseName].days++;
+  });
+
+  // Merge in any nurses with expenses but no distance data
+  Object.keys(monthExpenses).forEach(name => {
+    if (!byNurse[name]) byNurse[name] = { name, km: 0, visits: 0, days: 0 };
+  });
+
+  const nurseList = Object.values(byNurse).sort((a,b) => b.km - a.km);
+  const totalKm = nurseList.reduce((s,n) => s + n.km, 0);
+  const totalVisits = nurseList.reduce((s,n) => s + n.visits, 0);
+
+  // Expense totals
+  let totalGas = 0, totalParking = 0, totalOther = 0;
+  Object.values(monthExpenses).forEach(e => {
+    totalGas += parseInt(e.gas)||0;
+    totalParking += parseInt(e.parking)||0;
+    totalOther += parseInt(e.other)||0;
+  });
+  const totalExpense = totalGas + totalParking + totalOther;
+
+  document.getElementById('totalKm').innerHTML = `${Math.round(totalKm*10)/10}<span class="stat-unit"> km</span>`;
+  document.getElementById('totalVisits').innerHTML = `${totalVisits}<span class="stat-unit"> 件</span>`;
+  document.getElementById('activeNurses').innerHTML = `${nurseList.length}<span class="stat-unit"> 名</span>`;
+
+  const tbody = document.getElementById('reportTable');
+  if (!nurseList.length) {
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="8">データがありません</td></tr>';
+    document.getElementById('detailCard').style.display = 'none';
+    return;
+  }
+
+  tbody.innerHTML = nurseList.map(n => {
+    const pct = totalKm > 0 ? Math.round(n.km / totalKm * 100) : 0;
+    const color = pct > 40 ? 'var(--orange)' : pct > 25 ? 'var(--blue)' : 'var(--accent)';
+    const e = monthExpenses[n.name] || {};
+    const gas = parseInt(e.gas)||0;
+    const parking = parseInt(e.parking)||0;
+    const other = parseInt(e.other)||0;
+    const subtotal = gas + parking + other;
+    const fmt = v => v > 0 ? `<span class="tag tag-orange" style="font-family:var(--mono)">¥${v.toLocaleString()}</span>` : `<span style="color:var(--text3)">—</span>`;
+    return `
+      <tr>
+        <td><strong>${n.name}</strong></td>
+        <td>${n.visits}件 <span style="color:var(--text3)">(${n.days}日)</span></td>
+        <td><span class="tag tag-blue" style="font-family:var(--mono)">${Math.round(n.km*10)/10} km</span></td>
+        <td>${fmt(gas)}</td>
+        <td>${fmt(parking)}</td>
+        <td>${fmt(other)}</td>
+        <td>${subtotal > 0 ? `<strong style="font-family:var(--mono);color:var(--orange)">¥${subtotal.toLocaleString()}</strong>` : '<span style="color:var(--text3)">—</span>'}</td>
+        <td>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div class="progress-bar" style="width:80px;">
+              <div class="progress-fill" style="width:${pct}%;background:${color}"></div>
+            </div>
+            <span style="font-family:var(--mono);font-size:11px;color:var(--text2)">${pct}%</span>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  // Detail table
+  document.getElementById('detailCard').style.display = 'block';
+  const detailTbody = document.getElementById('detailTable');
+  detailTbody.innerHTML = filtered.sort((a,b) => a.date.localeCompare(b.date)).map(r => `
+    <tr>
+      <td>${r.date}</td>
+      <td>${r.nurseName}</td>
+      <td style="font-size:12px;color:var(--text2)">${r.route.join(' → ')}</td>
+      <td><span class="tag tag-green" style="font-family:var(--mono)">${r.distanceKm} km</span></td>
+    </tr>
+  `).join('');
+}
+
+// ============================================================
+// EXPORT
+// ============================================================
+function exportCsv() {
+  const month = document.getElementById('reportMonth').value;
+  const allResults = JSON.parse(localStorage.getItem('results') || '[]');
+  const filtered = month ? allResults.filter(r => r.date.startsWith(month)) : allResults;
+  const expenses = getExpenses();
+  const monthExpenses = expenses[month] || {};
+
+  // Aggregate by nurse for summary sheet
+  const byNurse = {};
+  filtered.forEach(r => {
+    if (!byNurse[r.nurseName]) byNurse[r.nurseName] = { km: 0, visits: 0 };
+    byNurse[r.nurseName].km += r.distanceKm;
+    byNurse[r.nurseName].visits += r.visitCount;
+  });
+  Object.keys(monthExpenses).forEach(name => {
+    if (!byNurse[name]) byNurse[name] = { km: 0, visits: 0 };
+  });
+
+  const bom = '\uFEFF';
+  let csv = '=== 月次サマリ ===\n';
+  csv += '看護師名,訪問件数,走行距離(km),ガソリン代(円),パーキング代(円),立替経費(円),合計経費(円)\n';
+  Object.keys(byNurse).forEach(name => {
+    const d = byNurse[name];
+    const e = monthExpenses[name] || {};
+    const gas = parseInt(e.gas)||0;
+    const parking = parseInt(e.parking)||0;
+    const other = parseInt(e.other)||0;
+    csv += `${name},${d.visits},${Math.round(d.km*10)/10},${gas},${parking},${other},${gas+parking+other}\n`;
+  });
+
+  csv += '\n=== 日別明細 ===\n';
+  csv += '日付,看護師名,訪問件数,走行距離(km),ルート\n';
+  filtered.sort((a,b)=>a.date.localeCompare(b.date)).forEach(r => {
+    csv += `${r.date},${r.nurseName},${r.visitCount},${r.distanceKm},"${r.route.join(' → ')}"\n`;
+  });
+
+  const blob = new Blob([bom + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url;
+  a.download = `走行距離_経費_${month || '全期間'}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+</script>
