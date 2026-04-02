@@ -1359,6 +1359,8 @@ function deleteAllData() {
 }
 
 
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
 function showLoading(show) {
   document.getElementById('loadingOverlay').classList.toggle('open', show);
 }
