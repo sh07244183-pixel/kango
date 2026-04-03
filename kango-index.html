@@ -1233,6 +1233,8 @@ async function calculateDistances() {
   }
 
   localStorage.setItem('results', JSON.stringify(results));
+  // 委託スタッフのガソリン代を自動計算して経費に保存
+  autoSaveContractGas(Object.values(groups)[0]?.date?.substring(0,7) || '');
   showLoading(false);
 
   if (calcAborted) {
@@ -1550,6 +1552,22 @@ function deleteAllData() {
   alert('✅ 全データをリセットしました');
 }
 
+
+function autoSaveContractGas(month) {
+  if (!month) return;
+  const allResults = JSON.parse(localStorage.getItem('results') || '[]');
+  const expenses = getExpenses();
+  if (!expenses[month]) expenses[month] = {};
+  const normalize = s => (s||'').replace(/[\u3000\s]/g, '');
+  nurses.filter(n => n.employType === 'contract').forEach(n => {
+    const totalKm = allResults
+      .filter(r => r.date.startsWith(month) && normalize(r.nurseName) === normalize(n.name))
+      .reduce((s, r) => s + (r.distanceKm || 0), 0);
+    if (!expenses[month][n.name]) expenses[month][n.name] = { gas:'', parking:'', other:'', note:'' };
+    expenses[month][n.name].gas = String(Math.round(totalKm * 20));
+  });
+  localStorage.setItem('expenses', JSON.stringify(expenses));
+}
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
@@ -1883,40 +1901,104 @@ function exportCsv() {
   const filtered = month ? allResults.filter(r => r.date.startsWith(month)) : allResults;
   const expenses = getExpenses();
   const monthExpenses = expenses[month] || {};
+  const savedRows = JSON.parse(localStorage.getItem('scheduleRows') || '[]');
+  const monthRows = savedRows.filter(r => r.date && r.date.startsWith(month));
+  const normalize = s => (s||'').replace(/[\u3000\s]/g, '');
 
-  // Aggregate by nurse for summary sheet
+  // 看護師ごとに走行距離・経費・歩合を集計
   const byNurse = {};
+
+  // 距離計算結果を集計
   filtered.forEach(r => {
-    if (!byNurse[r.nurseName]) byNurse[r.nurseName] = { km: 0, visits: 0 };
+    if (!byNurse[r.nurseName]) byNurse[r.nurseName] = { km: 0, visits: 0, normalCount: 0, nightCount: 0, incentive: 0 };
     byNurse[r.nurseName].km += r.distanceKm;
     byNurse[r.nurseName].visits += r.visitCount;
   });
+
+  // 経費だけある看護師も追加
   Object.keys(monthExpenses).forEach(name => {
-    if (!byNurse[name]) byNurse[name] = { km: 0, visits: 0 };
+    if (!byNurse[name]) byNurse[name] = { km: 0, visits: 0, normalCount: 0, nightCount: 0, incentive: 0 };
+  });
+
+  // 歩合を集計（同行スタッフも含む）
+  const addIncentive = (nurseName, startTime) => {
+    const key = Object.keys(byNurse).find(k => normalize(k) === normalize(nurseName));
+    const name = key || nurseName;
+    if (!byNurse[name]) byNurse[name] = { km: 0, visits: 0, normalCount: 0, nightCount: 0, incentive: 0 };
+    const nurse = nurses.find(n => normalize(n.name) === normalize(nurseName));
+    const isContract = nurse?.employType === 'contract';
+    const isNight = startTime >= '18:00';
+    const unit = isContract ? (isNight ? 3000 : 2500) : (isNight ? 1000 : 500);
+    if (isNight) byNurse[name].nightCount++;
+    else byNurse[name].normalCount++;
+    byNurse[name].incentive += unit;
+  };
+
+  monthRows.forEach(r => {
+    addIncentive(r.nurseName, r.time);
+    if (r.nurse2Name) addIncentive(r.nurse2Name, r.time);
+    if (r.nurse3Name) addIncentive(r.nurse3Name, r.time);
+  });
+
+  // 委託スタッフのガソリン代を走行距離×20円で自動反映
+  nurses.filter(n => n.employType === 'contract').forEach(n => {
+    const key = Object.keys(byNurse).find(k => normalize(k) === normalize(n.name));
+    if (!key) return;
+    const totalKm = byNurse[key].km;
+    if (!monthExpenses[n.name]) monthExpenses[n.name] = { gas:'', parking:'', other:'', note:'' };
+    if (!monthExpenses[n.name].gas) {
+      monthExpenses[n.name].gas = String(Math.round(totalKm * 20));
+    }
   });
 
   const bom = '\uFEFF';
-  let csv = '=== 月次サマリ ===\n';
-  csv += '看護師名,訪問件数,走行距離(km),ガソリン代(円),パーキング代(円),立替経費(円),合計経費(円)\n';
-  Object.keys(byNurse).forEach(name => {
+  let csv = `=== 月次サマリ (${month}) ===\n`;
+  csv += '看護師名,雇用形態,訪問件数,走行距離(km),ガソリン代(円),パーキング代(円),立替経費(円),合計経費(円),通常件数,夜間件数,歩合合計(円),合計支払(円)\n';
+
+  Object.keys(byNurse).sort().forEach(name => {
     const d = byNurse[name];
+    const nurse = nurses.find(n => normalize(n.name) === normalize(name));
+    const typeLabel = nurse?.employType === 'contract' ? '委託' : '正社員';
     const e = monthExpenses[name] || {};
     const gas = parseInt(e.gas)||0;
     const parking = parseInt(e.parking)||0;
     const other = parseInt(e.other)||0;
-    csv += `${name},${d.visits},${Math.round(d.km*10)/10},${gas},${parking},${other},${gas+parking+other}\n`;
+    const totalExpense = gas + parking + other;
+    const totalPay = totalExpense + d.incentive;
+    csv += `${name},${typeLabel},${d.visits},${Math.round(d.km*10)/10},${gas},${parking},${other},${totalExpense},${d.normalCount},${d.nightCount},${d.incentive},${totalPay}\n`;
   });
 
-  csv += '\n=== 日別明細 ===\n';
+  csv += '\n=== 日別明細（走行距離） ===\n';
   csv += '日付,看護師名,訪問件数,走行距離(km),ルート\n';
   filtered.sort((a,b)=>a.date.localeCompare(b.date)).forEach(r => {
     csv += `${r.date},${r.nurseName},${r.visitCount},${r.distanceKm},"${r.route.join(' → ')}"\n`;
   });
 
+  csv += '\n=== 日別明細（歩合） ===\n';
+  csv += '日付,看護師名,利用者,開始時間,区分,単価(円)\n';
+  const detailRows = [];
+  monthRows.forEach(r => {
+    const addRow = (nurseName) => {
+      if (!nurseName) return;
+      const nurse = nurses.find(n => normalize(n.name) === normalize(nurseName));
+      const isContract = nurse?.employType === 'contract';
+      const isNight = r.time >= '18:00';
+      const unit = isContract ? (isNight ? 3000 : 2500) : (isNight ? 1000 : 500);
+      detailRows.push({ date: r.date, nurseName, clientName: r.clientName, time: r.time, label: isNight ? '夜間' : '通常', unit });
+    };
+    addRow(r.nurseName);
+    if (r.nurse2Name) addRow(r.nurse2Name);
+    if (r.nurse3Name) addRow(r.nurse3Name);
+  });
+  detailRows.sort((a,b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
+  detailRows.forEach(r => {
+    csv += `${r.date},${r.nurseName},${r.clientName},${r.time},${r.label},${r.unit}\n`;
+  });
+
   const blob = new Blob([bom + csv], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a'); a.href = url;
-  a.download = `走行距離_経費_${month || '全期間'}.csv`;
+  a.download = `訪問看護_月次集計_${month || '全期間'}.csv`;
   a.click();
   URL.revokeObjectURL(url);
 }
