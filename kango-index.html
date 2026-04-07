@@ -620,8 +620,8 @@ tr:hover td { background: var(--surface2); }
 
       <div class="table-wrap">
         <table>
-          <thead><tr><th>看護師名</th><th>訪問件数</th><th>走行距離</th><th>ガソリン代</th><th>パーキング代</th><th>立替経費</th><th>合計経費</th><th>割合</th></tr></thead>
-          <tbody id="reportTable"><tr class="empty-row"><td colspan="8">計算データがありません。CSVを読み込んで距離計算を実行してください。</td></tr></tbody>
+          <thead><tr><th>看護師名</th><th>訪問件数</th><th>走行距離</th><th>ガソリン代</th><th>パーキング代</th><th>立替経費</th><th>合計経費</th><th>歩合</th><th>割合</th></tr></thead>
+          <tbody id="reportTable"><tr class="empty-row"><td colspan="9">計算データがありません。CSVを読み込んで距離計算を実行してください。</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -1939,6 +1939,16 @@ function renderReport() {
   const expenses = getExpenses();
   const monthExpenses = expenses[month] || {};
   const normalize = s => (s||'').replace(/[\u3000\s]/g, '');
+  const savedRows = JSON.parse(localStorage.getItem('scheduleRows') || '[]');
+
+  // 2ヶ月前の月を計算
+  function twoMonthsBefore(ym) {
+    const [y, m] = ym.split('-').map(Number);
+    const d = new Date(y, m - 3);
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+  }
+  const employeeSourceMonth = month ? twoMonthsBefore(month) : '';
+  const contractSourceMonth = month;
 
   // マスタ登録済みの看護師名セット
   const registeredNames = new Set(nurses.map(n => normalize(n.name)));
@@ -1948,7 +1958,7 @@ function renderReport() {
   const byNurse = {};
   filtered.filter(r => isRegistered(r.nurseName)).forEach(r => {
     const key = nurses.find(n => normalize(n.name) === normalize(r.nurseName))?.name || r.nurseName;
-    if (!byNurse[key]) byNurse[key] = { name: key, km: 0, visits: 0, days: 0 };
+    if (!byNurse[key]) byNurse[key] = { name: key, km: 0, visits: 0, days: 0, incentive: 0 };
     byNurse[key].km += r.distanceKm;
     byNurse[key].visits += r.visitCount;
     byNurse[key].days++;
@@ -1957,7 +1967,29 @@ function renderReport() {
   // Merge in any nurses with expenses but no distance data（マスタ登録済みのみ）
   Object.keys(monthExpenses).filter(name => isRegistered(name)).forEach(name => {
     const key = nurses.find(n => normalize(n.name) === normalize(name))?.name || name;
-    if (!byNurse[key]) byNurse[key] = { name: key, km: 0, visits: 0, days: 0 };
+    if (!byNurse[key]) byNurse[key] = { name: key, km: 0, visits: 0, days: 0, incentive: 0 };
+  });
+
+  // 歩合計算（正社員は2ヶ月前・委託は当月）
+  const addIncentive = (nurseName, date, startTime) => {
+    if (!nurseName || !isRegistered(nurseName)) return;
+    const nurse = nurses.find(n => normalize(n.name) === normalize(nurseName));
+    if (!nurse) return;
+    const isContract = nurse.employType === 'contract';
+    if (isContract && !date.startsWith(contractSourceMonth)) return;
+    if (!isContract && !date.startsWith(employeeSourceMonth)) return;
+    const key = nurse.name;
+    if (!byNurse[key]) byNurse[key] = { name: key, km: 0, visits: 0, days: 0, incentive: 0 };
+    const isNight = startTime >= '18:00';
+    const unit = isContract ? (isNight ? 3000 : 2500) : (isNight ? 1000 : 500);
+    byNurse[key].incentive += unit;
+  };
+
+  // 当月と2ヶ月前の両方のscheduleRowsを使って歩合を計算
+  savedRows.filter(r => r.date && (r.date.startsWith(contractSourceMonth) || r.date.startsWith(employeeSourceMonth))).forEach(r => {
+    addIncentive(r.nurseName, r.date, r.time);
+    if (r.nurse2Name) addIncentive(r.nurse2Name, r.date, r.time);
+    if (r.nurse3Name) addIncentive(r.nurse3Name, r.date, r.time);
   });
 
   const nurseList = Object.values(byNurse).sort((a,b) => b.km - a.km);
@@ -1979,7 +2011,7 @@ function renderReport() {
 
   const tbody = document.getElementById('reportTable');
   if (!nurseList.length) {
-    tbody.innerHTML = '<tr class="empty-row"><td colspan="8">データがありません</td></tr>';
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="9">データがありません</td></tr>';
     document.getElementById('detailCard').style.display = 'none';
     return;
   }
@@ -1992,6 +2024,11 @@ function renderReport() {
     const parking = parseInt(e.parking)||0;
     const other = parseInt(e.other)||0;
     const subtotal = gas + parking + other;
+    const nurse = nurses.find(nu => normalize(nu.name) === normalize(n.name));
+    const isContract = nurse?.employType === 'contract';
+    const incentiveNote = isContract
+      ? `<div style="font-size:10px;color:var(--text2)">${contractSourceMonth}実績</div>`
+      : `<div style="font-size:10px;color:var(--orange)">${employeeSourceMonth}実績</div>`;
     const fmt = v => v > 0 ? `<span class="tag tag-orange" style="font-family:var(--mono)">¥${v.toLocaleString()}</span>` : `<span style="color:var(--text3)">—</span>`;
     return `
       <tr>
@@ -2002,6 +2039,7 @@ function renderReport() {
         <td>${fmt(parking)}</td>
         <td>${fmt(other)}</td>
         <td>${subtotal > 0 ? `<strong style="font-family:var(--mono);color:var(--orange)">¥${subtotal.toLocaleString()}</strong>` : '<span style="color:var(--text3)">—</span>'}</td>
+        <td>${n.incentive > 0 ? `<strong style="font-family:var(--mono);color:var(--purple)">¥${n.incentive.toLocaleString()}</strong>${incentiveNote}` : '<span style="color:var(--text3)">—</span>'}</td>
         <td>
           <div style="display:flex;align-items:center;gap:8px;">
             <div class="progress-bar" style="width:80px;">
@@ -2148,4 +2186,3 @@ function exportCsv() {
 </script>
 </body>
 </html>
-
