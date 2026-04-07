@@ -3,2005 +3,835 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>訪問看護 走行距離管理システム</title>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<title>朝の記録ログ</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=IBM+Plex+Mono:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
-:root {
-  --bg: #0d1117;
-  --surface: #161b22;
-  --surface2: #21262d;
-  --surface3: #2d333b;
-  --border: #30363d;
-  --accent: #2ea043;
-  --accent-hover: #3fb950;
-  --blue: #58a6ff;
-  --orange: #f0883e;
-  --red: #f78166;
-  --purple: #bc8cff;
-  --text: #e6edf3;
-  --text2: #8b949e;
-  --text3: #484f58;
-  --radius: 8px;
-  --font: 'Noto Sans JP', sans-serif;
-  --mono: 'DM Mono', monospace;
-}
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body { background: var(--bg); color: var(--text); font-family: var(--font); font-size: 14px; min-height: 100vh; }
+  :root {
+    --bg: #0d0f14;
+    --surface: #151821;
+    --card: #1c2030;
+    --border: #2a3045;
+    --accent: #e8624a;
+    --accent2: #f0a070;
+    --text: #e8e4dc;
+    --muted: #7a8099;
+    --good: #5bb88a;
+    --warn: #e8c14a;
+    --danger: #e8624a;
+    --sleep: #7b8cde;
+    --night: #9b7bde;
+  }
 
-/* HEADER */
-header {
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
-  padding: 0 24px;
-  height: 52px;
-  display: flex; align-items: center; justify-content: space-between;
-  position: sticky; top: 0; z-index: 100;
-}
-.logo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 15px; }
-.logo-icon {
-  width: 28px; height: 28px;
-  background: linear-gradient(135deg, var(--accent), var(--blue));
-  border-radius: 6px;
-  display: flex; align-items: center; justify-content: center; font-size: 15px;
-}
-.api-status {
-  display: flex; align-items: center; gap: 8px;
-  font-family: var(--mono); font-size: 11px; color: var(--text2);
-  background: var(--bg); border: 1px solid var(--border);
-  padding: 5px 12px; border-radius: 20px; cursor: pointer;
-  transition: border-color 0.2s;
-}
-.api-status:hover { border-color: var(--blue); }
-.api-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text3); }
-.api-dot.active { background: var(--accent); box-shadow: 0 0 6px var(--accent); }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
 
-/* LAYOUT */
-.container { max-width: 1100px; margin: 0 auto; padding: 24px 20px; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Mono', monospace;
+    min-height: 100vh;
+    padding: 24px 16px 60px;
+    overflow-x: hidden;
+  }
 
-/* TABS */
-.tabs {
-  display: flex; gap: 2px;
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: var(--radius); padding: 4px; margin-bottom: 24px;
-  width: fit-content;
-}
-.tab {
-  padding: 7px 18px; border-radius: 6px; border: none;
-  background: transparent; color: var(--text2); font-family: var(--font);
-  font-size: 13px; cursor: pointer; transition: all 0.15s; white-space: nowrap;
-}
-.tab.active { background: var(--surface2); color: var(--text); font-weight: 500; }
-.tab:hover:not(.active) { color: var(--text); }
+  body::before {
+    content: '';
+    position: fixed;
+    top: -200px; right: -200px;
+    width: 500px; height: 500px;
+    background: radial-gradient(circle, rgba(123,140,222,0.07) 0%, transparent 70%);
+    pointer-events: none;
+  }
 
-.tab-content { display: none; }
-.tab-content.active { display: block; }
+  .header { text-align: center; margin-bottom: 28px; animation: fadeDown 0.6s ease; }
+  .header h1 { font-family: 'DM Serif Display', serif; font-size: clamp(1.7rem,5vw,2.4rem); font-style: italic; letter-spacing: -0.02em; line-height: 1.15; }
+  .header h1 .h { color: var(--accent); }
+  .header h1 .s { color: var(--sleep); }
+  .header p { color: var(--muted); font-size: 0.68rem; margin-top: 6px; letter-spacing: 0.1em; text-transform: uppercase; }
 
-/* CARDS */
-.card {
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: var(--radius); padding: 20px; margin-bottom: 16px;
-}
-.card-header {
-  display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 16px;
-}
-.card-title { font-weight: 600; font-size: 14px; display: flex; align-items: center; gap: 8px; }
-.badge {
-  font-family: var(--mono); font-size: 10px;
-  background: var(--surface2); border: 1px solid var(--border);
-  padding: 2px 7px; border-radius: 10px; color: var(--text2);
-}
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 20px; margin-bottom: 16px; }
+  .card.anim1 { animation: fadeUp 0.5s ease 0.1s both; }
+  .card.anim2 { animation: fadeUp 0.5s ease 0.15s both; }
+  .card.anim3 { animation: fadeUp 0.5s ease 0.2s both; }
+  .card.anim4 { animation: fadeUp 0.5s ease 0.25s both; }
+  .card.anim5 { animation: fadeUp 0.5s ease 0.3s both; }
+  .card.anim6 { animation: fadeUp 0.5s ease 0.35s both; }
 
-/* FORMS */
-.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
-.form-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 12px; }
-.form-group { display: flex; flex-direction: column; gap: 5px; }
-label { font-size: 12px; color: var(--text2); font-weight: 500; }
-input, select, textarea {
-  background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
-  color: var(--text); font-family: var(--font); font-size: 13px;
-  padding: 8px 12px; transition: border-color 0.2s; outline: none;
-}
-input:focus, select:focus, textarea:focus { border-color: var(--blue); }
-textarea { resize: vertical; min-height: 80px; }
-input.filled { border-color: var(--accent); background: rgba(46,160,67,0.06); }
+  .section-title { font-size: 0.65rem; color: var(--muted); letter-spacing: 0.13em; text-transform: uppercase; margin-bottom: 14px; }
+  .section-subtitle { font-size: 0.6rem; color: var(--night); letter-spacing: 0.1em; text-transform: uppercase; margin: 0 0 12px; padding: 6px 10px; background: rgba(155,123,222,0.1); border-radius: 6px; border-left: 2px solid var(--night); }
+  .date-display { font-family: 'DM Serif Display', serif; font-size: 1.05rem; color: var(--accent2); margin-bottom: 16px; }
+  .divider { height: 1px; background: var(--border); margin: 16px 0; }
 
-/* BUTTONS */
-.btn {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 8px 16px; border-radius: 6px; border: none;
-  font-family: var(--font); font-size: 13px; font-weight: 500;
-  cursor: pointer; transition: all 0.15s;
-}
-.btn-primary { background: var(--accent); color: #fff; }
-.btn-primary:hover { background: var(--accent-hover); }
-.btn-primary:disabled { background: var(--surface3); color: var(--text3); cursor: not-allowed; }
-.btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
-.btn-secondary:hover { background: var(--surface3); border-color: var(--text3); }
-.btn-danger { background: transparent; color: var(--red); border: 1px solid transparent; }
-.btn-danger:hover { background: rgba(247,129,102,0.1); border-color: var(--red); }
-.btn-sm { padding: 5px 10px; font-size: 12px; }
+  .field-row { display: flex; flex-direction: column; gap: 14px; }
+  .field-group { display: flex; flex-direction: column; gap: 6px; }
+  .field-label { font-size: 0.63rem; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; }
 
-/* TABLE */
-.table-wrap { overflow-x: auto; }
-table { width: 100%; border-collapse: collapse; }
-th {
-  text-align: left; padding: 10px 12px;
-  font-size: 11px; font-weight: 600; color: var(--text2);
-  text-transform: uppercase; letter-spacing: 0.05em;
-  border-bottom: 1px solid var(--border);
-  background: var(--surface2);
-}
-td { padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 13px; }
-tr:last-child td { border-bottom: none; }
-tr:hover td { background: var(--surface2); }
-.empty-row td { color: var(--text3); text-align: center; padding: 32px; }
+  .num-row { display: flex; align-items: center; background: var(--surface); border: 1.5px solid var(--border); border-radius: 10px; overflow: hidden; transition: border-color 0.2s; }
+  .num-row:focus-within { border-color: var(--accent); }
+  .num-btn { background: none; border: none; color: var(--muted); font-size: 1.3rem; padding: 0 16px; height: 52px; cursor: pointer; transition: color 0.15s, background 0.15s; flex-shrink: 0; }
+  .num-btn:hover { color: var(--text); background: rgba(255,255,255,0.05); }
+  .num-val { flex: 1; text-align: center; font-family: 'DM Serif Display', serif; font-size: 1.6rem; color: var(--text); line-height: 52px; user-select: none; }
+  .num-unit { font-family: 'IBM Plex Mono', monospace; font-size: 0.7rem; color: var(--muted); padding-right: 14px; align-self: center; white-space: nowrap; }
 
-/* TAGS */
-.tag {
-  display: inline-block; padding: 2px 8px; border-radius: 10px;
-  font-size: 11px; font-weight: 500;
-}
-.tag-green { background: rgba(46,160,67,0.15); color: var(--accent-hover); border: 1px solid rgba(46,160,67,0.3); }
-.tag-blue { background: rgba(88,166,255,0.15); color: var(--blue); border: 1px solid rgba(88,166,255,0.3); }
-.tag-orange { background: rgba(240,136,62,0.15); color: var(--orange); border: 1px solid rgba(240,136,62,0.3); }
-.tag-red { background: rgba(247,129,102,0.15); color: var(--red); border: 1px solid rgba(247,129,102,0.3); }
-.tag-purple { background: rgba(188,140,255,0.15); color: var(--purple); border: 1px solid rgba(188,140,255,0.3); }
+  .bpm-wrap { position: relative; background: var(--surface); border: 1.5px solid var(--border); border-radius: 10px; transition: border-color 0.2s; }
+  .bpm-wrap:focus-within { border-color: var(--accent); }
+  .bpm-wrap input { width: 100%; background: none; border: none; color: var(--text); font-family: 'DM Serif Display', serif; font-size: 2rem; padding: 10px 54px 10px 18px; outline: none; -webkit-appearance: none; }
+  .bpm-unit { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 0.72rem; }
 
-/* CSV AREA */
-.csv-area {
-  background: var(--bg); border: 2px dashed var(--border); border-radius: var(--radius);
-  padding: 20px; transition: border-color 0.2s;
-}
-.csv-area:focus-within { border-color: var(--blue); }
-.csv-area textarea { background: transparent; border: none; padding: 0; width: 100%; min-height: 120px; font-family: var(--mono); font-size: 12px; }
-.csv-area textarea:focus { border: none; }
+  .time-wrap { background: var(--surface); border: 1.5px solid var(--border); border-radius: 10px; display: flex; align-items: center; transition: border-color 0.2s; }
+  .time-wrap:focus-within { border-color: var(--night); }
+  .time-wrap input[type="time"] { flex: 1; background: none; border: none; color: var(--text); font-family: 'DM Serif Display', serif; font-size: 1.6rem; padding: 10px 14px; outline: none; -webkit-appearance: none; color-scheme: dark; }
+  .time-clear { background: none; border: none; color: var(--muted); font-size: 1rem; padding: 0 14px; cursor: pointer; transition: color 0.15s; }
+  .time-clear:hover { color: var(--danger); }
 
-/* RESULT */
-.result-section { margin-top: 24px; }
-.result-header {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 14px 16px;
-  background: var(--surface2); border: 1px solid var(--border);
-  border-bottom: none; border-radius: var(--radius) var(--radius) 0 0;
-}
-.result-title { font-weight: 600; font-size: 14px; }
-.result-table-wrap {
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: 0 0 var(--radius) var(--radius); overflow: hidden;
-}
+  .chip-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .chip { background: var(--surface); border: 1.5px solid var(--border); border-radius: 100px; color: var(--muted); font-family: 'IBM Plex Mono', monospace; font-size: 0.72rem; padding: 7px 14px; cursor: pointer; transition: all 0.18s; white-space: nowrap; }
+  .chip.active-alcohol { border-color: #e8624a; background: rgba(232,98,74,0.15); color: var(--text); }
+  .chip.active-caffeine { border-color: #e8c14a; background: rgba(232,193,74,0.15); color: var(--text); }
 
-/* STATS */
-.stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px; }
-.stat-card {
-  background: var(--surface2); border: 1px solid var(--border);
-  border-radius: var(--radius); padding: 16px;
-}
-.stat-label { font-size: 11px; color: var(--text2); font-weight: 500; margin-bottom: 6px; }
-.stat-value { font-size: 24px; font-weight: 700; font-family: var(--mono); }
-.stat-unit { font-size: 13px; color: var(--text2); font-weight: 400; }
+  .rf-row { display: flex; gap: 6px; }
+  .rf-btn { flex: 1; background: var(--surface); border: 1.5px solid var(--border); border-radius: 10px; color: var(--muted); font-family: 'IBM Plex Mono', monospace; font-size: 0.65rem; padding: 8px 2px; cursor: pointer; text-align: center; transition: all 0.18s; line-height: 1.4; }
+  .rf-btn .emoji { font-size: 1.25rem; display: block; margin-bottom: 2px; }
+  .rf-btn.active-morning { border-color: var(--sleep); background: rgba(123,140,222,0.14); color: var(--text); }
+  .rf-btn.active-day { border-color: var(--warn); background: rgba(232,193,74,0.14); color: var(--text); }
 
-/* PROGRESS */
-.progress-bar {
-  height: 4px; background: var(--surface3); border-radius: 2px; overflow: hidden;
-}
-.progress-fill { height: 100%; border-radius: 2px; transition: width 0.5s ease; }
+  .note-input { width: 100%; background: var(--surface); border: 1.5px solid var(--border); border-radius: 10px; color: var(--text); font-family: 'IBM Plex Mono', monospace; font-size: 0.78rem; padding: 10px 14px; outline: none; resize: none; transition: border-color 0.2s; }
+  .note-input:focus { border-color: var(--accent); }
+  .note-input::placeholder { color: var(--muted); }
 
-/* ALERT */
-.alert {
-  display: flex; align-items: flex-start; gap: 10px;
-  padding: 12px 14px; border-radius: var(--radius); margin-bottom: 16px;
-  font-size: 13px;
-}
-.alert-info { background: rgba(88,166,255,0.1); border: 1px solid rgba(88,166,255,0.3); color: var(--blue); }
-.alert-warn { background: rgba(240,136,62,0.1); border: 1px solid rgba(240,136,62,0.3); color: var(--orange); }
-.alert-success { background: rgba(46,160,67,0.1); border: 1px solid rgba(46,160,67,0.3); color: var(--accent-hover); }
-.alert-error { background: rgba(247,129,102,0.1); border: 1px solid rgba(247,129,102,0.3); color: var(--red); }
+  .save-btn { width: 100%; background: var(--accent); border: none; border-radius: 10px; color: #fff; font-family: 'IBM Plex Mono', monospace; font-size: 0.88rem; font-weight: 500; padding: 15px; cursor: pointer; letter-spacing: 0.06em; transition: background 0.2s, transform 0.1s; margin-top: 6px; }
+  .save-btn:hover { background: #d45538; }
+  .save-btn:active { transform: scale(0.98); }
 
-/* MODAL */
-.modal-overlay {
-  display: none; position: fixed; inset: 0;
-  background: rgba(0,0,0,0.7); z-index: 200;
-  align-items: center; justify-content: center;
-}
-.modal-overlay.open { display: flex; }
-.modal {
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: 12px; padding: 28px; width: 440px; max-width: 90vw;
-}
-.modal h3 { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
-.modal p { color: var(--text2); font-size: 13px; margin-bottom: 20px; }
-.modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
+  .edit-banner { display: none; background: rgba(232,193,74,0.12); border: 1.5px solid var(--warn); border-radius: 10px; padding: 10px 14px; margin-bottom: 14px; font-size: 0.72rem; color: var(--warn); align-items: center; gap: 10px; }
+  .edit-banner.show { display: flex; }
+  .edit-banner-cancel { margin-left: auto; background: none; border: none; color: var(--warn); font-size: 0.75rem; cursor: pointer; font-family: 'IBM Plex Mono', monospace; text-decoration: underline; }
 
-/* SPINNER */
-.spinner {
-  width: 16px; height: 16px;
-  border: 2px solid transparent; border-top-color: currentColor;
-  border-radius: 50%; animation: spin 0.7s linear infinite;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
+  /* ── GAME CARD ── */
+  .game-card { background: linear-gradient(135deg, #1c2030 0%, #141820 100%); border: 1px solid #2a3045; border-radius: 16px; padding: 20px; margin-bottom: 16px; position: relative; overflow: hidden; }
+  .game-card::before { content: ''; position: absolute; top: -60px; right: -60px; width: 180px; height: 180px; background: radial-gradient(circle, rgba(232,98,74,0.08) 0%, transparent 70%); pointer-events: none; }
 
-/* LOADING OVERLAY */
-.loading-overlay {
-  display: none; position: fixed; inset: 0;
-  background: rgba(13,17,23,0.85); z-index: 300;
-  align-items: center; justify-content: center; flex-direction: column; gap: 16px;
-}
-.loading-overlay.open { display: flex; }
-.loading-text { font-size: 14px; color: var(--text2); }
+  /* Streak */
+  .streak-row { display: flex; align-items: center; gap: 16px; margin-bottom: 18px; }
+  .streak-flame { font-size: 2.4rem; animation: flame 1.5s ease infinite; flex-shrink: 0; }
+  .streak-info { flex: 1; }
+  .streak-num { font-family: 'DM Serif Display', serif; font-size: 2.8rem; color: var(--accent); line-height: 1; }
+  .streak-label { font-size: 0.65rem; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; margin-top: 2px; }
+  .streak-sub { font-size: 0.7rem; color: var(--muted); margin-top: 4px; }
+  .streak-bar-wrap { background: var(--surface); border-radius: 100px; height: 6px; overflow: hidden; margin-top: 6px; }
+  .streak-bar { height: 100%; border-radius: 100px; background: linear-gradient(90deg, var(--accent), var(--accent2)); transition: width 0.8s ease; }
 
-@media (max-width: 600px) {
-  .form-row, .form-row-3 { grid-template-columns: 1fr; }
-  .stats-grid { grid-template-columns: 1fr; }
-}
+  /* AI Comment */
+  .ai-comment-box { background: rgba(91,184,138,0.08); border: 1px solid rgba(91,184,138,0.25); border-radius: 12px; padding: 14px 16px; margin-bottom: 18px; min-height: 56px; position: relative; }
+  .ai-comment-label { font-size: 0.58rem; color: var(--good); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 6px; }
+  .ai-comment-text { font-size: 0.82rem; color: var(--text); line-height: 1.7; }
+  .ai-comment-text.loading { color: var(--muted); }
+  .ai-cursor { display: inline-block; width: 2px; height: 14px; background: var(--good); animation: blink 0.8s steps(1) infinite; vertical-align: middle; margin-left: 2px; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+  /* Badges */
+  .badges-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .badge { background: var(--surface); border: 1.5px solid var(--border); border-radius: 12px; padding: 10px 6px; text-align: center; transition: all 0.3s; position: relative; }
+  .badge.unlocked { border-color: var(--warn); background: rgba(232,193,74,0.08); }
+  .badge.unlocked .badge-icon { filter: none; }
+  .badge-icon { font-size: 1.6rem; display: block; margin-bottom: 4px; filter: grayscale(1) opacity(0.3); transition: filter 0.3s; }
+  .badge-name { font-size: 0.55rem; color: var(--muted); letter-spacing: 0.06em; line-height: 1.3; }
+  .badge.unlocked .badge-name { color: var(--warn); }
+  .badge-new { position: absolute; top: -4px; right: -4px; background: var(--accent); color: #fff; font-size: 0.5rem; padding: 1px 5px; border-radius: 100px; font-weight: 700; display: none; }
+  .badge.newly-unlocked .badge-new { display: block; }
+
+  /* Stats */
+  .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .stat-box { background: var(--surface); border-radius: 10px; padding: 12px 8px; text-align: center; }
+  .stat-val { font-family: 'DM Serif Display', serif; font-size: 1.45rem; line-height: 1; }
+  .stat-lbl { font-size: 0.56rem; color: var(--muted); letter-spacing: 0.09em; text-transform: uppercase; margin-top: 4px; }
+
+  .tab-row { display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; }
+  .tab-btn { background: var(--surface); border: 1.5px solid var(--border); border-radius: 8px; color: var(--muted); font-family: 'IBM Plex Mono', monospace; font-size: 0.62rem; padding: 5px 10px; cursor: pointer; letter-spacing: 0.06em; transition: all 0.15s; }
+  .tab-btn.active { border-color: var(--accent); color: var(--text); background: rgba(232,98,74,0.1); }
+  #chart-canvas { width: 100%; height: 160px; display: block; }
+
+  .log-list { display: flex; flex-direction: column; gap: 10px; }
+  .log-item { background: var(--surface); border-radius: 10px; padding: 12px 14px; position: relative; overflow: hidden; border: 1.5px solid transparent; transition: border 0.2s; }
+  .log-item.editing { border-color: var(--warn); }
+  .log-bar { position: absolute; left: 0; top: 0; height: 100%; opacity: 0.07; border-radius: 10px; }
+  .log-top { display: flex; align-items: center; gap: 8px; }
+  .log-date { font-size: 0.7rem; color: var(--muted); min-width: 70px; }
+  .log-bpm { font-family: 'DM Serif Display', serif; font-size: 1.25rem; flex: 1; }
+  .log-zone { font-size: 0.6rem; padding: 2px 7px; border-radius: 100px; }
+  .log-actions { display: flex; gap: 4px; flex-shrink: 0; }
+  .log-edit { background: none; border: 1px solid var(--border); color: var(--muted); font-size: 0.62rem; cursor: pointer; padding: 3px 8px; border-radius: 6px; transition: all 0.15s; font-family: 'IBM Plex Mono', monospace; }
+  .log-edit:hover { border-color: var(--warn); color: var(--warn); }
+  .log-del { background: none; border: none; color: var(--muted); font-size: 1rem; cursor: pointer; padding: 2px 4px; border-radius: 4px; transition: color 0.15s; }
+  .log-del:hover { color: var(--danger); }
+  .log-sleep { display: flex; gap: 10px; margin-top: 8px; font-size: 0.67rem; color: var(--muted); flex-wrap: wrap; }
+  .log-habits { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+  .log-chip { font-size: 0.6rem; padding: 2px 8px; border-radius: 100px; background: rgba(255,255,255,0.05); color: var(--muted); }
+  .log-note { margin-top: 6px; font-size: 0.66rem; color: var(--muted); border-left: 2px solid var(--border); padding-left: 8px; }
+
+  .export-row { display: flex; gap: 10px; }
+  .export-btn { flex: 1; background: var(--surface); border: 1.5px solid var(--border); border-radius: 10px; color: var(--text); font-family: 'IBM Plex Mono', monospace; font-size: 0.75rem; padding: 12px 10px; cursor: pointer; text-align: center; transition: all 0.18s; letter-spacing: 0.05em; }
+  .export-btn:hover { border-color: var(--good); background: rgba(91,184,138,0.1); color: var(--good); }
+  .export-btn .ex-icon { font-size: 1.3rem; display: block; margin-bottom: 4px; }
+  .import-area { margin-top: 12px; display: none; }
+  .import-area.open { display: block; }
+  .import-file { width: 100%; background: var(--surface); border: 1.5px dashed var(--border); border-radius: 10px; color: var(--muted); font-family: 'IBM Plex Mono', monospace; font-size: 0.75rem; padding: 14px; cursor: pointer; text-align: center; display: block; }
+  input[type="file"] { display: none; }
+
+  .empty-state { text-align: center; color: var(--muted); font-size: 0.76rem; padding: 24px 0; line-height: 2.2; }
+
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px); color: #fff; font-size: 0.82rem; padding: 12px 28px; border-radius: 100px; transition: transform 0.3s ease; z-index: 999; white-space: nowrap; }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* Badge unlock popup */
+  .badge-popup { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%) translateY(100px) scale(0.8); opacity: 0; background: linear-gradient(135deg, #2a2010, #1c1a08); border: 1.5px solid var(--warn); border-radius: 16px; padding: 16px 24px; text-align: center; z-index: 1000; transition: all 0.4s cubic-bezier(0.34,1.56,0.64,1); pointer-events: none; white-space: nowrap; }
+  .badge-popup.show { transform: translateX(-50%) translateY(0) scale(1); opacity: 1; }
+  .badge-popup-icon { font-size: 2rem; display: block; margin-bottom: 4px; }
+  .badge-popup-title { font-size: 0.65rem; color: var(--warn); letter-spacing: 0.1em; text-transform: uppercase; }
+  .badge-popup-name { font-family: 'DM Serif Display', serif; font-size: 1.1rem; color: var(--text); margin-top: 2px; }
+
+  .heart { display: inline-block; color: var(--accent); animation: hb 1.2s ease infinite; }
+
+  @keyframes hb { 0%,100%{transform:scale(1)} 15%{transform:scale(1.25)} 30%{transform:scale(1)} 45%{transform:scale(1.15)} 60%{transform:scale(1)} }
+  @keyframes flame { 0%,100%{transform:scale(1) rotate(-3deg)} 50%{transform:scale(1.1) rotate(3deg)} }
+  @keyframes fadeDown { from{opacity:0;transform:translateY(-16px)} to{opacity:1;transform:translateY(0)} }
+  @keyframes fadeUp   { from{opacity:0;transform:translateY(16px)}  to{opacity:1;transform:translateY(0)} }
 </style>
 </head>
 <body>
 
-<!-- HEADER -->
-<header>
-  <div class="logo">
-    <div class="logo-icon">🚗</div>
-    訪問看護 走行距離管理
-  </div>
-  <div class="api-status" onclick="openApiModal()">
-    <div class="api-dot" id="apiDot"></div>
-    <span id="apiStatusText">APIキー未設定</span>
-  </div>
-</header>
-
-<!-- LOADING -->
-<div class="loading-overlay" id="loadingOverlay">
-  <div class="spinner" style="width:36px;height:36px;border-width:3px;border-top-color:var(--blue);"></div>
-  <div class="loading-text" id="loadingText">距離を計算中...</div>
-  <button onclick="stopCalculation()" style="
-    margin-top:16px; padding:8px 24px; border-radius:6px; border:1px solid var(--red);
-    background:transparent; color:var(--red); font-size:13px; cursor:pointer;
-  ">⏹ 計算を中断する</button>
+<div class="header">
+  <h1><span class="heart">♥</span> 心拍数 &amp; <span class="s">睡眠</span><br>朝の記録ログ</h1>
+  <p>Morning Heart Rate &amp; Sleep Log</p>
 </div>
 
-<!-- API KEY MODAL -->
-<div class="modal-overlay" id="apiModal">
-  <div class="modal">
-    <h3>🔑 Google Maps APIキー設定</h3>
-    <p>Distance Matrix APIが有効なキーを入力してください。キーはこのブラウザにのみ保存されます。</p>
-    <div class="form-group" style="margin-bottom:12px;">
-      <label>APIキー</label>
-      <input type="password" id="apiKeyInput" placeholder="AIzaSy..." />
+<!-- ゲームカード -->
+<div class="game-card anim1">
+
+  <!-- ストリーク -->
+  <div class="streak-row">
+    <div class="streak-flame">🔥</div>
+    <div class="streak-info">
+      <div class="streak-num" id="streak-num">0</div>
+      <div class="streak-label">日連続記録中</div>
+      <div class="streak-sub" id="streak-sub">今日記録して連続をスタートしよう！</div>
+      <div class="streak-bar-wrap"><div class="streak-bar" id="streak-bar" style="width:0%"></div></div>
     </div>
-    <div id="gasTestResult" style="font-size:12px;margin-bottom:12px;display:none;"></div>
-    <div class="modal-actions" style="flex-wrap:wrap;gap:8px;">
-      <button class="btn btn-secondary btn-sm" onclick="testGasConnection()">🔌 接続テスト</button>
-      <div style="flex:1;"></div>
-      <button class="btn btn-secondary" onclick="closeApiModal()">キャンセル</button>
-      <button class="btn btn-primary" onclick="saveApiKey()">保存</button>
+  </div>
+
+  <!-- AIコメント -->
+  <div class="ai-comment-box">
+    <div class="ai-comment-label">🤖 AI コーチより</div>
+    <div class="ai-comment-text" id="ai-comment">記録すると、AIがあなたのデータを分析してコメントします！</div>
+  </div>
+
+  <!-- バッジ -->
+  <div class="section-title" style="margin-bottom:10px;">🏅 バッジコレクション</div>
+  <div class="badges-grid" id="badges-grid"></div>
+</div>
+
+<!-- 入力 -->
+<div class="card anim2">
+  <div class="section-title" id="form-title">今日の記録</div>
+  <div class="date-display" id="today-date"></div>
+  <div class="edit-banner" id="edit-banner">
+    ✏️ <span id="edit-banner-date"></span> のデータを編集中
+    <button class="edit-banner-cancel" onclick="cancelEdit()">キャンセル</button>
+  </div>
+
+  <div class="field-row">
+    <div class="section-subtitle">🌙 就寝前の習慣</div>
+
+    <div class="field-group">
+      <div class="field-label">🛏 就寝時間</div>
+      <div class="time-wrap"><input type="time" id="bedtime-input"><button class="time-clear" onclick="clearTime('bedtime-input')">×</button></div>
     </div>
+
+    <div class="field-group">
+      <div class="field-label">🍽 最終食事（就寝の何時間前？）</div>
+      <div class="num-row">
+        <button class="num-btn" onclick="adjust('meal',-0.5)">−</button>
+        <div class="num-val" id="meal-val">2.0</div>
+        <div class="num-unit">時間前</div>
+        <button class="num-btn" onclick="adjust('meal',+0.5)">＋</button>
+      </div>
+    </div>
+
+    <div class="field-group">
+      <div class="field-label">🍺 アルコール摂取</div>
+      <div class="chip-row">
+        <button class="chip" id="chip-alcohol-none" onclick="setAlcohol(0)">なし</button>
+        <button class="chip" id="chip-alcohol-1"    onclick="setAlcohol(1)">少し（1〜2杯）</button>
+        <button class="chip" id="chip-alcohol-2"    onclick="setAlcohol(2)">飲んだ（3杯以上）</button>
+      </div>
+    </div>
+
+    <div class="field-group">
+      <div class="field-label">☕ カフェイン（午後以降）</div>
+      <div class="chip-row">
+        <button class="chip" id="chip-caff-none" onclick="setCaffeine(0)">なし</button>
+        <button class="chip" id="chip-caff-1"    onclick="setCaffeine(1)">午後に1杯</button>
+        <button class="chip" id="chip-caff-2"    onclick="setCaffeine(2)">夕方以降も飲んだ</button>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+    <div class="section-subtitle">☀ 今朝の記録</div>
+
+    <div class="field-group">
+      <div class="field-label">♥ 安静時心拍数</div>
+      <div class="bpm-wrap">
+        <input type="number" id="bpm-input" placeholder="60" min="30" max="200" inputmode="numeric">
+        <span class="bpm-unit">BPM</span>
+      </div>
+    </div>
+
+    <div class="field-group">
+      <div class="field-label">🌙 睡眠時間</div>
+      <div class="num-row">
+        <button class="num-btn" onclick="adjust('sleep',-0.5)">−</button>
+        <div class="num-val" id="sleep-val">7.0</div>
+        <div class="num-unit">時間</div>
+        <button class="num-btn" onclick="adjust('sleep',+0.5)">＋</button>
+      </div>
+    </div>
+
+    <div class="field-group">
+      <div class="field-label">😵 中途覚醒の回数</div>
+      <div class="num-row">
+        <button class="num-btn" onclick="adjust('wake',-1)">−</button>
+        <div class="num-val" id="wake-val">0</div>
+        <div class="num-unit">回</div>
+        <button class="num-btn" onclick="adjust('wake',+1)">＋</button>
+      </div>
+    </div>
+
+    <div class="field-group">
+      <div class="field-label">☀ 起きた時の目覚め感</div>
+      <div class="rf-row" id="rf-morning">
+        <button class="rf-btn" data-v="1" onclick="setRefresh(1)"><span class="emoji">😴</span>最悪</button>
+        <button class="rf-btn" data-v="2" onclick="setRefresh(2)"><span class="emoji">😪</span>眠い</button>
+        <button class="rf-btn" data-v="3" onclick="setRefresh(3)"><span class="emoji">😐</span>普通</button>
+        <button class="rf-btn" data-v="4" onclick="setRefresh(4)"><span class="emoji">😊</span>良い</button>
+        <button class="rf-btn" data-v="5" onclick="setRefresh(5)"><span class="emoji">😁</span>最高</button>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+    <div class="section-subtitle">🌤 日中の記録（後から編集でもOK）</div>
+
+    <div class="field-group">
+      <div class="field-label">😪 日中の眠気</div>
+      <div class="rf-row" id="rf-day">
+        <button class="rf-btn" data-v="1" onclick="setDaySleep(1)"><span class="emoji">😴</span>激眠い</button>
+        <button class="rf-btn" data-v="2" onclick="setDaySleep(2)"><span class="emoji">😪</span>眠い</button>
+        <button class="rf-btn" data-v="3" onclick="setDaySleep(3)"><span class="emoji">😐</span>普通</button>
+        <button class="rf-btn" data-v="4" onclick="setDaySleep(4)"><span class="emoji">😊</span>元気</button>
+        <button class="rf-btn" data-v="5" onclick="setDaySleep(5)"><span class="emoji">😁</span>快調</button>
+      </div>
+    </div>
+
+    <div class="field-group">
+      <div class="field-label">📝 メモ（任意）</div>
+      <textarea class="note-input" id="note-input" placeholder="その他気になったことなど..." rows="2"></textarea>
+    </div>
+  </div>
+  <button class="save-btn" id="save-btn" onclick="saveEntry()">記録する</button>
+</div>
+
+<!-- Stats -->
+<div class="card anim3">
+  <div class="section-title">サマリー</div>
+  <div class="stats-grid">
+    <div class="stat-box"><div class="stat-val" id="st-hr"    style="color:var(--accent)">—</div><div class="stat-lbl">平均 BPM</div></div>
+    <div class="stat-box"><div class="stat-val" id="st-sleep" style="color:var(--sleep)">—</div><div class="stat-lbl">平均睡眠h</div></div>
+    <div class="stat-box"><div class="stat-val" id="st-rf"    style="color:var(--good)">—</div><div class="stat-lbl">平均目覚め</div></div>
+    <div class="stat-box"><div class="stat-val" id="st-hrmin" style="color:var(--good)">—</div><div class="stat-lbl">最低 BPM</div></div>
+    <div class="stat-box"><div class="stat-val" id="st-wake"  style="color:var(--warn)">—</div><div class="stat-lbl">平均覚醒回</div></div>
+    <div class="stat-box"><div class="stat-val" id="st-days"  style="color:var(--muted)">0</div><div class="stat-lbl">記録日数</div></div>
   </div>
 </div>
 
-<!-- MAIN -->
-<div class="container">
-
-  <!-- TABS -->
-  <div class="tabs">
-    <button class="tab active" onclick="switchTab('master')">👤 マスタ登録</button>
-    <button class="tab" onclick="switchTab('csv')">📋 CSV読み込み</button>
-    <button class="tab" onclick="switchTab('expense')">💴 経費入力</button>
-    <button class="tab" onclick="switchTab('incentive')">💰 歩合</button>
-    <button class="tab" onclick="switchTab('report')">📊 月次レポート</button>
-    <button class="tab" onclick="switchTab('storage')">💾 データ管理</button>
+<!-- Chart -->
+<div class="card anim4">
+  <div class="section-title">トレンド（直近14日）</div>
+  <div class="tab-row">
+    <button class="tab-btn active" onclick="switchTab('hr')">心拍数</button>
+    <button class="tab-btn" onclick="switchTab('sleep')">睡眠時間</button>
+    <button class="tab-btn" onclick="switchTab('rf')">目覚め感</button>
+    <button class="tab-btn" onclick="switchTab('day')">日中眠気</button>
+    <button class="tab-btn" onclick="switchTab('meal')">食事間隔</button>
   </div>
+  <canvas id="chart-canvas"></canvas>
+</div>
 
-  <!-- ===== TAB1: マスタ登録 ===== -->
-  <div class="tab-content active" id="tab-master">
-
-    <!-- 看護師登録 -->
-    <div class="card">
-      <div class="card-header">
-        <div class="card-title">👩‍⚕️ 看護師マスタ <span class="badge" id="nurseBadge">0名</span></div>
-        <div style="display:flex;gap:6px;">
-          <button class="btn btn-secondary btn-sm" onclick="toggleNurseBulk()">📋 一括登録</button>
-          <button class="btn btn-primary btn-sm" onclick="openNurseForm()">＋ 追加</button>
-        </div>
-      </div>
-
-      <!-- 一括登録エリア -->
-      <div id="nurseBulkArea" style="display:none;margin-bottom:16px;">
-        <div class="alert alert-info" style="margin-bottom:10px;">
-          <span>ℹ️</span>
-          <div>
-            1行1名で「<strong>氏名　雇用形態　住所</strong>」をタブ区切りで貼り付け。<br>
-            雇用形態は「正社員」または「委託」（省略時は正社員）<br>
-            <span style="font-family:var(--mono);font-size:11px;">例：田中花子	正社員	横浜市西区〇〇1-1</span>
-          </div>
-        </div>
-        <div class="csv-area">
-          <textarea id="nurseBulkInput" placeholder="田中花子	正社員	横浜市西区〇〇1-1-1&#10;山本幸子	委託	横浜市中区〇〇2-2-2&#10;..." style="min-height:100px;width:100%;font-family:var(--mono);font-size:12px;background:transparent;border:none;"></textarea>
-        </div>
-        <div style="display:flex;gap:8px;margin-top:10px;">
-          <button class="btn btn-primary btn-sm" onclick="bulkAddNurses()">✅ 一括登録</button>
-          <button class="btn btn-secondary btn-sm" onclick="toggleNurseBulk()">キャンセル</button>
-        </div>
-      </div>
-
-      <div id="nurseFormArea" style="display:none; margin-bottom:16px;">
-        <div class="form-row">
-          <div class="form-group">
-            <label>看護師名 *</label>
-            <input type="text" id="nurseName" placeholder="例：田中 花子" />
-          </div>
-          <div class="form-group">
-            <label>住所 *</label>
-            <input type="text" id="nurseAddress" placeholder="例：横浜市西区みなとみらい1-1-1" />
-          </div>
-        </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label>雇用形態 *</label>
-            <select id="nurseEmployType">
-              <option value="employee">正社員（ガソリン代：手入力）</option>
-              <option value="contract">委託スタッフ（ガソリン代：距離×20円）</option>
-            </select>
-          </div>
-        </div>
-        <div style="display:flex; gap:8px;">
-          <button class="btn btn-primary btn-sm" onclick="addNurse()">登録</button>
-          <button class="btn btn-secondary btn-sm" onclick="closeNurseForm()">キャンセル</button>
-        </div>
-      </div>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>氏名</th><th>雇用形態</th><th>住所</th><th>操作</th></tr></thead>
-          <tbody id="nurseTable"><tr class="empty-row"><td colspan="4">看護師が登録されていません</td></tr></tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- 利用者登録 -->
-    <div class="card">
-      <div class="card-header">
-        <div class="card-title">🏠 利用者マスタ <span class="badge" id="clientBadge">0名</span></div>
-        <div style="display:flex;gap:6px;">
-          <button class="btn btn-secondary btn-sm" onclick="toggleClientBulk()">📋 一括登録</button>
-          <button class="btn btn-primary btn-sm" onclick="openClientForm()">＋ 追加</button>
-        </div>
-      </div>
-
-      <!-- 一括登録エリア -->
-      <div id="clientBulkArea" style="display:none;margin-bottom:16px;">
-        <div class="alert alert-info" style="margin-bottom:10px;">
-          <span>ℹ️</span>
-          <div>
-            1行1名で「<strong>氏名　住所</strong>」をタブ区切りで貼り付け。<br>
-            <span style="font-family:var(--mono);font-size:11px;">例：山田太郎	横浜市中区〇〇1-1</span>
-          </div>
-        </div>
-        <div class="csv-area">
-          <textarea id="clientBulkInput" placeholder="山田太郎	横浜市中区〇〇1-1&#10;鈴木花子	横浜市南区〇〇2-2&#10;..." style="min-height:100px;width:100%;font-family:var(--mono);font-size:12px;background:transparent;border:none;"></textarea>
-        </div>
-        <div style="display:flex;gap:8px;margin-top:10px;">
-          <button class="btn btn-primary btn-sm" onclick="bulkAddClients()">✅ 一括登録</button>
-          <button class="btn btn-secondary btn-sm" onclick="toggleClientBulk()">キャンセル</button>
-        </div>
-      </div>
-
-      <div id="clientFormArea" style="display:none; margin-bottom:16px;">
-        <div class="form-row">
-          <div class="form-group">
-            <label>利用者名 *</label>
-            <input type="text" id="clientName" placeholder="例：山田 太郎" />
-          </div>
-          <div class="form-group">
-            <label>住所 *</label>
-            <input type="text" id="clientAddress" placeholder="例：横浜市中区山下町1-1" />
-          </div>
-        </div>
-        <div style="display:flex; gap:8px;">
-          <button class="btn btn-primary btn-sm" onclick="addClient()">登録</button>
-          <button class="btn btn-secondary btn-sm" onclick="closeClientForm()">キャンセル</button>
-        </div>
-      </div>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>氏名</th><th>住所</th><th>操作</th></tr></thead>
-          <tbody id="clientTable"><tr class="empty-row"><td colspan="3">利用者が登録されていません</td></tr></tbody>
-        </table>
-      </div>
-    </div>
+<!-- Log -->
+<div class="card anim5">
+  <div class="section-title">ログ履歴</div>
+  <div class="log-list" id="log-list">
+    <div class="empty-state">まだ記録がありません 🌅<br>今朝のデータを入力してみましょう</div>
   </div>
+</div>
 
-  <!-- ===== TAB2: CSV読み込み ===== -->
-  <div class="tab-content" id="tab-csv">
-
-    <div class="alert alert-info">
-      <span>ℹ️</span>
-      <div>
-        <strong>訪問看護スケジュールCSV（Shift-JIS）に対応。</strong>
-        ファイル名に年月（例：<code>202603</code>）が含まれていれば自動判定します。
-        職員名１をメイン担当者として処理し、訪問順序は開始時間順に自動ソートします。
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-header">
-        <div class="card-title">📋 CSVファイル読み込み</div>
-        <div style="display:flex;gap:8px;align-items:center;">
-          <div style="font-size:12px;color:var(--text2)">年月：</div>
-          <input type="month" id="csvYearMonth" value="2026-03" style="padding:5px 10px;font-size:12px;width:140px;" />
-        </div>
-      </div>
-
-      <label style="
-        display:flex; flex-direction:column; align-items:center; justify-content:center;
-        gap:10px; padding:32px; border:2px dashed var(--border); border-radius:var(--radius);
-        cursor:pointer; transition:border-color 0.2s; background:var(--bg);
-      " id="dropZone" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">
-        <div style="font-size:32px">📂</div>
-        <div style="font-weight:600">CSVファイルをドラッグ＆ドロップ</div>
-        <div style="font-size:12px;color:var(--text2)">または</div>
-        <button class="btn btn-secondary btn-sm" onclick="document.getElementById('csvFileInput').click();event.preventDefault()">ファイルを選択</button>
-        <div style="font-size:11px;color:var(--text3)" id="csvFileName">Shift-JIS形式のCSVに対応</div>
-        <input type="file" id="csvFileInput" accept=".csv" style="display:none" onchange="onFileSelect(event)" />
-      </label>
-
-      <div style="display:flex; gap:8px; margin-top:12px;">
-        <button class="btn btn-primary" id="parseCsvBtn" onclick="parseCsv()" disabled>📥 読み込む</button>
-        <button class="btn btn-secondary" onclick="clearCsv()">クリア</button>
-      </div>
-    </div>
-
-    <div id="csvPreview" style="display:none;">
-      <div class="card">
-        <div class="card-header">
-          <div class="card-title">プレビュー <span class="badge" id="csvRowBadge">0件</span></div>
-          <button class="btn btn-primary" id="calcBtn" onclick="calculateDistances()">
-            🗺️ 距離を計算する
-          </button>
-        </div>
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>看護師</th><th>利用者</th><th>訪問日</th><th>開始時間</th><th>ステータス</th></tr></thead>
-            <tbody id="csvPreviewTable"></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
+<!-- Export -->
+<div class="card anim6">
+  <div class="section-title">データのバックアップ</div>
+  <div class="export-row">
+    <button class="export-btn" onclick="exportCSV()"><span class="ex-icon">📤</span>CSV書き出し</button>
+    <button class="export-btn" onclick="exportJSON()"><span class="ex-icon">💾</span>JSON保存</button>
+    <button class="export-btn" onclick="toggleImport()"><span class="ex-icon">📥</span>JSON読み込み</button>
   </div>
-
-  <!-- ===== TAB3: 経費入力 ===== -->
-  <div class="tab-content" id="tab-expense">
-
-    <div class="card">
-      <div class="card-header">
-        <div class="card-title">💴 経費入力</div>
-        <div style="display:flex;gap:8px;align-items:center;">
-          <select id="expenseMonth" style="padding:6px 10px;font-size:12px;"></select>
-        </div>
-      </div>
-
-      <div class="alert alert-info">
-        <span>ℹ️</span>
-        <div>入力内容は<strong>リアルタイムで自動保存</strong>されます。途中で閉じても再開できます。<span id="lastSavedLabel" style="margin-left:8px;color:var(--text3);font-size:11px;"></span></div>
-      </div>
-
-      <!-- 入力進捗バー -->
-      <div id="expenseProgressWrap" style="margin-bottom:16px;display:none;">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-          <span style="font-size:12px;font-weight:600;">入力進捗</span>
-          <span id="expenseProgressLabel" style="font-size:12px;color:var(--text2);font-family:var(--mono);"></span>
-        </div>
-        <div class="progress-bar" style="height:8px;">
-          <div class="progress-fill" id="expenseProgressFill" style="width:0%;background:var(--accent);transition:width 0.4s;"></div>
-        </div>
-        <div id="expenseRemainingList" style="margin-top:8px;font-size:12px;color:var(--orange);"></div>
-      </div>
-
-      <div id="expenseTableWrap">
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>看護師名</th>
-                <th>ガソリン代 (円)</th>
-                <th>パーキング代 (円)</th>
-                <th>立替経費 (円)</th>
-                <th>備考</th>
-                <th>小計</th>
-              </tr>
-            </thead>
-            <tbody id="expenseInputTable"></tbody>
-          </table>
-        </div>
-      </div>
-
-      <div style="margin-top:14px;display:flex;gap:8px;">
-        <button class="btn btn-primary" onclick="saveExpenses()">💾 保存</button>
-        <button class="btn btn-secondary" onclick="clearExpenses()">クリア</button>
-      </div>
-    </div>
-
-    <!-- 経費サマリ -->
-    <div class="card" id="expenseSummaryCard">
-      <div class="card-header">
-        <div class="card-title">📋 経費サマリ</div>
-      </div>
-      <div class="stats-grid" style="grid-template-columns:repeat(3,1fr);">
-        <div class="stat-card">
-          <div class="stat-label">ガソリン代合計</div>
-          <div class="stat-value" id="sumGas">—<span class="stat-unit"> 円</span></div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">パーキング代合計</div>
-          <div class="stat-value" id="sumParking">—<span class="stat-unit"> 円</span></div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">立替経費合計</div>
-          <div class="stat-value" id="sumOther">—<span class="stat-unit"> 円</span></div>
-        </div>
-      </div>
-    </div>
+  <div class="import-area" id="import-area">
+    <label class="import-file" for="import-file-input" style="margin-top:12px;">📂 ファイルを選択</label>
+    <input type="file" id="import-file-input" accept=".json" onchange="importJSON(event)">
+    <div style="font-size:0.62rem;color:var(--muted);margin-top:8px;">⚠ 読み込むと現在のデータに追加されます（重複は上書き）</div>
   </div>
+</div>
 
-  <!-- ===== TAB4: レポート ===== -->
-  <div class="tab-content" id="tab-report">
-
-    <div class="card">
-      <div class="card-header">
-        <div class="card-title">📊 月次レポート</div>
-        <div style="display:flex; gap:8px; align-items:center;">
-          <select id="reportMonth" style="padding:6px 10px; font-size:12px;">
-            <option value="">-- 月を選択 --</option>
-          </select>
-          <button class="btn btn-secondary btn-sm" onclick="exportCsv()">📤 CSV出力</button>
-        </div>
-      </div>
-
-      <div class="stats-grid" id="statsGrid">
-        <div class="stat-card">
-          <div class="stat-label">総走行距離</div>
-          <div class="stat-value" id="totalKm">—<span class="stat-unit"> km</span></div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">訪問件数</div>
-          <div class="stat-value" id="totalVisits">—<span class="stat-unit"> 件</span></div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">稼働看護師</div>
-          <div class="stat-value" id="activeNurses">—<span class="stat-unit"> 名</span></div>
-        </div>
-      </div>
-
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>看護師名</th><th>訪問件数</th><th>走行距離</th><th>ガソリン代</th><th>パーキング代</th><th>立替経費</th><th>合計経費</th><th>割合</th></tr></thead>
-          <tbody id="reportTable"><tr class="empty-row"><td colspan="8">計算データがありません。CSVを読み込んで距離計算を実行してください。</td></tr></tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- 日別明細 -->
-    <div class="card" id="detailCard" style="display:none;">
-      <div class="card-header">
-        <div class="card-title">📅 日別明細</div>
-      </div>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>日付</th><th>看護師</th><th>ルート</th><th>距離</th></tr></thead>
-          <tbody id="detailTable"></tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
-  <!-- ===== TAB4: 歩合 ===== -->
-  <div class="tab-content" id="tab-incentive">
-    <div class="card">
-      <div class="card-header">
-        <div class="card-title">💰 歩合計算 <span class="badge">自動集計</span></div>
-        <div style="display:flex;gap:8px;align-items:center;">
-          <select id="incentiveMonth" style="padding:6px 10px;font-size:12px;"></select>
-        </div>
-      </div>
-
-      <div class="alert alert-info" style="margin-bottom:16px;">
-        <span>ℹ️</span>
-        <div>
-          <strong>正社員：</strong>通常500円/件、18:00以降開始1,000円/件<br>
-          <strong>委託：</strong>通常2,500円/件、18:00以降開始3,000円/件<br>
-          <span style="font-size:11px;color:var(--text2);">同行スタッフ（職員名2）も1件としてカウント</span>
-        </div>
-      </div>
-
-      <!-- サマリ -->
-      <div class="stats-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:20px;">
-        <div class="stat-card">
-          <div class="stat-label">歩合合計</div>
-          <div class="stat-value" id="incentiveTotalAll">—<span class="stat-unit"> 円</span></div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">通常件数</div>
-          <div class="stat-value" id="incentiveNormalCount">—<span class="stat-unit"> 件</span></div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">夜間件数（18時以降）</div>
-          <div class="stat-value" id="incentiveNightCount">—<span class="stat-unit"> 件</span></div>
-        </div>
-      </div>
-
-      <!-- 看護師別テーブル -->
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>看護師名</th>
-              <th>雇用形態</th>
-              <th>通常件数</th>
-              <th>夜間件数</th>
-              <th>合計件数</th>
-              <th>歩合合計</th>
-            </tr>
-          </thead>
-          <tbody id="incentiveTable"><tr class="empty-row"><td colspan="6">CSVを読み込んで計算してください</td></tr></tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- 日別明細 -->
-    <div class="card" id="incentiveDetailCard" style="display:none;">
-      <div class="card-header">
-        <div class="card-title">📅 歩合 日別明細</div>
-      </div>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>日付</th><th>看護師</th><th>利用者</th><th>開始時間</th><th>区分</th><th>単価</th></tr></thead>
-          <tbody id="incentiveDetailTable"></tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
-  <!-- ===== TAB5: データ管理 ===== -->
-  <div class="tab-content" id="tab-storage">
-
-    <!-- 保存済みデータ一覧 -->
-    <div class="card">
-      <div class="card-header">
-        <div class="card-title">📦 保存済みデータ一覧</div>
-        <button class="btn btn-secondary btn-sm" onclick="renderStorageTab()">🔄 更新</button>
-      </div>
-      <div class="alert alert-info" style="margin-bottom:16px;">
-        <span>ℹ️</span>
-        <div>データはすべてこのブラウザに自動保存されています。バックアップを定期的にダウンロードしておくと安心です。</div>
-      </div>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>月</th><th>スケジュール</th><th>距離計算</th><th>経費入力</th><th>操作</th></tr></thead>
-          <tbody id="storageMonthTable"><tr class="empty-row"><td colspan="5">データがありません</td></tr></tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- バックアップ / 復元 -->
-    <div class="card">
-      <div class="card-header">
-        <div class="card-title">🔒 バックアップ・復元</div>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
-        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:16px;">
-          <div style="font-weight:600;margin-bottom:8px;">📤 全データをバックアップ</div>
-          <div style="font-size:12px;color:var(--text2);margin-bottom:12px;">看護師・利用者マスタ、全月の経費・距離データをJSONファイルで保存します。</div>
-          <button class="btn btn-primary btn-sm" onclick="downloadBackup()">💾 バックアップをダウンロード</button>
-        </div>
-        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:16px;">
-          <div style="font-weight:600;margin-bottom:8px;">📥 バックアップから復元</div>
-          <div style="font-size:12px;color:var(--text2);margin-bottom:12px;">以前ダウンロードしたJSONファイルを読み込んでデータを復元します。</div>
-          <button class="btn btn-secondary btn-sm" onclick="document.getElementById('restoreInput').click()">📂 ファイルを選択して復元</button>
-          <input type="file" id="restoreInput" accept=".json" style="display:none" onchange="restoreBackup(event)" />
-        </div>
-      </div>
-    </div>
-
-    <!-- 月別削除 -->
-    <div class="card">
-      <div class="card-header">
-        <div class="card-title" style="color:var(--red);">⚠️ データ削除</div>
-      </div>
-      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
-        <select id="deleteTargetMonth" style="padding:6px 10px;font-size:12px;"></select>
-        <button class="btn btn-danger" onclick="deleteMonthData()">選択月のデータを削除</button>
-        <button class="btn btn-danger" onclick="deleteAllData()" style="margin-left:auto;">全データをリセット</button>
-      </div>
-    </div>
-
-  </div>
-
+<div class="toast" id="toast"></div>
+<div class="badge-popup" id="badge-popup">
+  <span class="badge-popup-icon" id="bp-icon"></span>
+  <div class="badge-popup-title">🏅 バッジ獲得！</div>
+  <div class="badge-popup-name" id="bp-name"></div>
 </div>
 
 <script>
-// ============================================================
-// STATE
-// ============================================================
-let calcAborted = false;
+const STORAGE_KEY = 'hr_sleep_log_v3';
+const REFRESH_EMOJI = ['','😴','😪','😐','😊','😁'];
+const DAY_EMOJI     = ['','😴','😪','😐','😊','😁'];
+const ALCOHOL_LABEL  = ['なし','少し','飲んだ'];
+const CAFFEINE_LABEL = ['なし','午後1杯','夕方以降'];
 
-function stopCalculation() {
-  calcAborted = true;
-  updateLoadingText('中断しています...');
+// ── Badge definitions ──
+const BADGE_DEFS = [
+  { id:'first',    icon:'🌅', name:'はじめの一歩',  desc:'初めて記録',           check: d => d.length >= 1 },
+  { id:'streak3',  icon:'🔥', name:'3日連続',       desc:'3日連続記録',          check: d => calcStreak(d) >= 3 },
+  { id:'streak7',  icon:'⚡', name:'一週間の習慣',  desc:'7日連続記録',          check: d => calcStreak(d) >= 7 },
+  { id:'streak30', icon:'👑', name:'30日の王者',    desc:'30日連続記録',         check: d => calcStreak(d) >= 30 },
+  { id:'days10',   icon:'📅', name:'10日記録',      desc:'累計10日記録',         check: d => d.length >= 10 },
+  { id:'days30',   icon:'🗓', name:'30日記録',      desc:'累計30日記録',         check: d => d.length >= 30 },
+  { id:'lowhr',    icon:'💚', name:'鉄の心臓',      desc:'心拍数60以下を記録',   check: d => d.some(e => e.bpm <= 60) },
+  { id:'goodsleep',icon:'😴', name:'睡眠の達人',    desc:'8時間以上の睡眠を記録',check: d => d.some(e => e.sleep >= 8) },
+  { id:'morning5', icon:'☀', name:'最高の目覚め',  desc:'目覚め感5を記録',      check: d => d.some(e => e.refresh === 5) },
+  { id:'noalc',    icon:'🥤', name:'禁酒の夜',      desc:'アルコールなしで7日',  check: d => checkNoAlcStreak(d, 7) },
+  { id:'perfect',  icon:'⭐', name:'パーフェクト',  desc:'睡眠7h以上+目覚め4以上+心拍65以下', check: d => d.some(e => e.sleep>=7 && e.refresh>=4 && e.bpm<=65) },
+  { id:'analyst',  icon:'🔬', name:'データ分析家',  desc:'累計20日記録',         check: d => d.length >= 20 },
+];
+
+let currentTab = 'hr';
+let editingDate = null;
+let sleepVal=7.0, wakeVal=0, mealVal=2.0, refreshVal=0, daySleepVal=0, alcoholVal=0, caffeineVal=0;
+
+function loadData() { try { return JSON.parse(localStorage.getItem(STORAGE_KEY))||[]; } catch { return []; } }
+function saveData(d) { localStorage.setItem(STORAGE_KEY, JSON.stringify(d)); }
+function loadBadges() { try { return JSON.parse(localStorage.getItem('hr_badges_v1'))||[]; } catch { return []; } }
+function saveBadges(b) { localStorage.setItem('hr_badges_v1', JSON.stringify(b)); }
+
+function getTodayStr() {
+  const d=new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function formatDateJa(str) {
+  const [y,m,d]=str.split('-');
+  return `${m}/${d}（${['日','月','火','水','木','金','土'][new Date(+y,+m-1,+d).getDay()]}）`;
 }
 
-let apiKey = localStorage.getItem('gmaps_api_key') || '';
-let nurses = JSON.parse(localStorage.getItem('nurses') || '[]');
-let clients = JSON.parse(localStorage.getItem('clients') || '[]');
-let scheduleRows = [];
-let results = [];
-
-// init
-updateApiStatus();
-renderNurseTable();
-renderClientTable();
-initReportMonths();
-initExpenseMonths();
-initIncentiveMonths();
-
-// ============================================================
-// API KEY
-// ============================================================
-function openApiModal() {
-  document.getElementById('apiKeyInput').value = apiKey;
-  document.getElementById('apiModal').classList.add('open');
-}
-function closeApiModal() {
-  document.getElementById('apiModal').classList.remove('open');
-}
-function saveApiKey() {
-  const val = document.getElementById('apiKeyInput').value.trim();
-  if (!val) { alert('APIキーを入力してください'); return; }
-  apiKey = val;
-  localStorage.setItem('gmaps_api_key', val);
-  updateApiStatus();
-  closeApiModal();
-}
-
-function testGasConnection() {
-  const key = document.getElementById('apiKeyInput').value.trim();
-  if (!key) { alert('先にAPIキーを入力してください'); return; }
-  const resultEl = document.getElementById('gasTestResult');
-  resultEl.style.display = 'block';
-  resultEl.style.color = 'var(--text2)';
-  resultEl.textContent = '🔄 テスト中...';
-
-  const url = `${GAS_URL}?origin=${encodeURIComponent('横浜市西区高島2-16-1')}&destination=${encodeURIComponent('横浜市中区山下町1-1')}&key=${encodeURIComponent(key)}`;
-  const timer = setTimeout(() => {
-    resultEl.style.color = 'var(--red)';
-    resultEl.textContent = '❌ 接続失敗: タイムアウト（20秒）';
-  }, 20000);
-
-  fetch(url)
-    .then(res => res.json())
-    .then(data => {
-      clearTimeout(timer);
-      if (data.status !== 'OK') {
-        resultEl.style.color = 'var(--red)';
-        resultEl.textContent = `❌ Maps API エラー: ${data.status} ${data.error_message||''}`;
-        return;
-      }
-      const elem = data.rows[0]?.elements[0];
-      if (!elem || elem.status !== 'OK') {
-        resultEl.style.color = 'var(--red)';
-        resultEl.textContent = `❌ ルート取得失敗: ${elem?.status}`;
-        return;
-      }
-      const km = Math.round(elem.distance.value / 100) / 10;
-      resultEl.style.color = 'var(--accent)';
-      resultEl.textContent = `✅ 接続成功！テスト距離: ${km}km`;
-    })
-    .catch(err => {
-      clearTimeout(timer);
-      resultEl.style.color = 'var(--red)';
-      resultEl.textContent = `❌ 接続失敗: ${err.message}`;
-    });
-}
-function updateApiStatus() {
-  const dot = document.getElementById('apiDot');
-  const txt = document.getElementById('apiStatusText');
-  if (apiKey) {
-    dot.classList.add('active');
-    txt.textContent = 'API設定済み';
-  } else {
-    dot.classList.remove('active');
-    txt.textContent = 'APIキー未設定';
+// ── Streak ──
+function calcStreak(data) {
+  if (!data.length) return 0;
+  const sorted=[...data].sort((a,b)=>b.date.localeCompare(a.date));
+  const today=getTodayStr();
+  let streak=0, cur=today;
+  for (const e of sorted) {
+    if (e.date===cur) { streak++; const d=new Date(cur); d.setDate(d.getDate()-1); cur=d.toISOString().slice(0,10); }
+    else if (e.date < cur) break;
   }
+  return streak;
 }
 
-// ============================================================
-// TABS
-// ============================================================
-function switchTab(name) {
-  const names = ['master','csv','expense','incentive','report','storage'];
-  document.querySelectorAll('.tab').forEach((t,i) => {
-    t.classList.toggle('active', names[i] === name);
-  });
-  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-  document.getElementById('tab-' + name).classList.add('active');
-  if (name === 'report') renderReport();
-  if (name === 'expense') renderExpenseTable();
-  if (name === 'storage') renderStorageTab();
-  if (name === 'incentive') renderIncentiveTab();
-}
-
-// ============================================================
-// BULK REGISTER
-// ============================================================
-function toggleNurseBulk() {
-  const area = document.getElementById('nurseBulkArea');
-  area.style.display = area.style.display === 'none' ? 'block' : 'none';
-  document.getElementById('nurseFormArea').style.display = 'none';
-}
-function toggleClientBulk() {
-  const area = document.getElementById('clientBulkArea');
-  area.style.display = area.style.display === 'none' ? 'block' : 'none';
-  document.getElementById('clientFormArea').style.display = 'none';
-}
-
-function bulkAddNurses() {
-  const raw = document.getElementById('nurseBulkInput').value.trim();
-  if (!raw) { alert('データを入力してください'); return; }
-  const lines = raw.split('\n').filter(l => l.trim());
-  let added = 0, skipped = 0;
-  lines.forEach(line => {
-    const cols = line.split('\t').map(c => c.trim());
-    if (cols.length < 2) { skipped++; return; }
-    const [name, typeRaw, address] = cols;
-    if (!name || !address) { skipped++; return; }
-    if (nurses.find(n => n.name === name)) { skipped++; return; }
-    const employType = (typeRaw || '').includes('委託') ? 'contract' : 'employee';
-    nurses.push({ id: Date.now() + added, name, address, employType });
-    added++;
-  });
-  saveData();
-  renderNurseTable();
-  document.getElementById('nurseBulkInput').value = '';
-  document.getElementById('nurseBulkArea').style.display = 'none';
-  alert(`✅ ${added}名を登録しました。${skipped > 0 ? `（${skipped}件スキップ）` : ''}`);
-}
-
-function bulkAddClients() {
-  const raw = document.getElementById('clientBulkInput').value.trim();
-  if (!raw) { alert('データを入力してください'); return; }
-  const lines = raw.split('\n').filter(l => l.trim());
-  let added = 0, skipped = 0;
-  lines.forEach(line => {
-    const cols = line.split('\t').map(c => c.trim());
-    if (cols.length < 2) { skipped++; return; }
-    const [name, address] = cols;
-    if (!name || !address) { skipped++; return; }
-    if (clients.find(c => c.name === name)) { skipped++; return; }
-    clients.push({ id: Date.now() + added, name, address });
-    added++;
-  });
-  saveData();
-  renderClientTable();
-  document.getElementById('clientBulkInput').value = '';
-  document.getElementById('clientBulkArea').style.display = 'none';
-  alert(`✅ ${added}名を登録しました。${skipped > 0 ? `（${skipped}件スキップ）` : ''}`);
-}
-
-
-// ============================================================
-function openNurseForm() { document.getElementById('nurseFormArea').style.display = 'block'; }
-function closeNurseForm() { document.getElementById('nurseFormArea').style.display = 'none'; }
-
-function addNurse() {
-  const name = document.getElementById('nurseName').value.trim();
-  const addr = document.getElementById('nurseAddress').value.trim();
-  const employType = document.getElementById('nurseEmployType').value;
-  if (!name || !addr) { alert('名前と住所を入力してください'); return; }
-  nurses.push({ id: Date.now(), name, address: addr, employType });
-  saveData();
-  renderNurseTable();
-  document.getElementById('nurseName').value = '';
-  document.getElementById('nurseAddress').value = '';
-  document.getElementById('nurseEmployType').value = 'employee';
-  closeNurseForm();
-}
-
-function deleteNurse(id) {
-  if (!confirm('削除しますか？')) return;
-  nurses = nurses.filter(n => n.id !== id);
-  saveData();
-  renderNurseTable();
-}
-
-function renderNurseTable() {
-  const tbody = document.getElementById('nurseTable');
-  document.getElementById('nurseBadge').textContent = nurses.length + '名';
-  if (!nurses.length) {
-    tbody.innerHTML = '<tr class="empty-row"><td colspan="4">看護師が登録されていません</td></tr>';
-    return;
+function checkNoAlcStreak(data, days) {
+  const sorted=[...data].sort((a,b)=>b.date.localeCompare(a.date));
+  let cnt=0;
+  for (const e of sorted) {
+    if (!e.alcohol) cnt++; else cnt=0;
+    if (cnt>=days) return true;
   }
-  tbody.innerHTML = nurses.map(n => {
-    const typeLabel = n.employType === 'contract'
-      ? `<span class="tag tag-orange">委託</span>`
-      : `<span class="tag tag-blue">正社員</span>`;
-    return `
-      <tr>
-        <td><strong>${n.name}</strong></td>
-        <td>${typeLabel}</td>
-        <td style="color:var(--text2)">${n.address}</td>
-        <td><button class="btn btn-danger btn-sm" onclick="deleteNurse(${n.id})">削除</button></td>
-      </tr>
-    `;
+  return false;
+}
+
+// ── Badge check ──
+function checkBadges(data) {
+  const unlocked = loadBadges();
+  const newOnes = [];
+  for (const def of BADGE_DEFS) {
+    if (!unlocked.includes(def.id) && def.check(data)) {
+      unlocked.push(def.id);
+      newOnes.push(def);
+    }
+  }
+  if (newOnes.length) saveBadges(unlocked);
+  return newOnes;
+}
+
+function renderBadges(data) {
+  const unlocked=loadBadges();
+  const grid=document.getElementById('badges-grid');
+  grid.innerHTML=BADGE_DEFS.map(def=>{
+    const on=unlocked.includes(def.id);
+    return `<div class="badge ${on?'unlocked':''}" title="${def.desc}">
+      <span class="badge-icon">${def.icon}</span>
+      <div class="badge-name">${def.name}</div>
+      <span class="badge-new">NEW</span>
+    </div>`;
   }).join('');
 }
 
-// ============================================================
-// CLIENT MASTER
-// ============================================================
-function openClientForm() { document.getElementById('clientFormArea').style.display = 'block'; }
-function closeClientForm() { document.getElementById('clientFormArea').style.display = 'none'; }
-
-function addClient() {
-  const name = document.getElementById('clientName').value.trim();
-  const addr = document.getElementById('clientAddress').value.trim();
-  if (!name || !addr) { alert('名前と住所を入力してください'); return; }
-  clients.push({ id: Date.now(), name, address: addr });
-  saveData();
-  renderClientTable();
-  document.getElementById('clientName').value = '';
-  document.getElementById('clientAddress').value = '';
-  closeClientForm();
+function showBadgePopup(def) {
+  const popup=document.getElementById('badge-popup');
+  document.getElementById('bp-icon').textContent=def.icon;
+  document.getElementById('bp-name').textContent=def.name;
+  popup.classList.add('show');
+  setTimeout(()=>popup.classList.remove('show'),3000);
 }
 
-function deleteClient(id) {
-  if (!confirm('削除しますか？')) return;
-  clients = clients.filter(c => c.id !== id);
-  saveData();
-  renderClientTable();
+// ── Streak UI ──
+function renderStreak(data) {
+  const streak=calcStreak(data);
+  document.getElementById('streak-num').textContent=streak;
+  const next = streak<3?3:streak<7?7:streak<30?30:streak+10;
+  const pct = Math.min(100, Math.round((streak/next)*100));
+  document.getElementById('streak-bar').style.width=pct+'%';
+  const sub = streak===0 ? '今日記録して連続をスタートしよう！'
+    : streak<3  ? `次の目標: 3日連続（あと${3-streak}日）`
+    : streak<7  ? `次の目標: 7日連続（あと${7-streak}日）`
+    : streak<30 ? `次の目標: 30日連続（あと${30-streak}日）`
+    : `🎉 ${streak}日連続！素晴らしい継続力！`;
+  document.getElementById('streak-sub').textContent=sub;
 }
 
-function renderClientTable() {
-  const tbody = document.getElementById('clientTable');
-  document.getElementById('clientBadge').textContent = clients.length + '名';
-  if (!clients.length) {
-    tbody.innerHTML = '<tr class="empty-row"><td colspan="3">利用者が登録されていません</td></tr>';
-    return;
-  }
-  tbody.innerHTML = clients.map(c => `
-    <tr>
-      <td><strong>${c.name}</strong></td>
-      <td style="color:var(--text2)">${c.address}</td>
-      <td><button class="btn btn-danger btn-sm" onclick="deleteClient(${c.id})">削除</button></td>
-    </tr>
-  `).join('');
-}
+// ── AI Comment ──
+async function fetchAIComment(data) {
+  if (!data.length) return;
+  const el=document.getElementById('ai-comment');
+  el.className='ai-comment-text loading';
+  el.innerHTML='分析中<span class="ai-cursor"></span>';
 
-function saveData() {
-  localStorage.setItem('nurses', JSON.stringify(nurses));
-  localStorage.setItem('clients', JSON.stringify(clients));
-}
+  const recent=data.slice(-7);
+  const streak=calcStreak(data);
+  const avg=arr=>arr.length?Math.round(arr.reduce((s,v)=>s+v,0)/arr.length*10)/10:null;
+  const avgBpm=avg(recent.map(e=>e.bpm));
+  const avgSleep=avg(recent.map(e=>e.sleep||0));
+  const avgRefresh=avg(recent.filter(e=>e.refresh).map(e=>e.refresh));
+  const avgWake=avg(recent.map(e=>e.wake||0));
+  const alcoholDays=recent.filter(e=>e.alcohol>0).length;
+  const latest=data[data.length-1];
 
-// ============================================================
-// CSV FILE HANDLING
-// ============================================================
-let csvRawBuffer = null; // ArrayBuffer of uploaded file
+  const prompt=`あなたは親しみやすい健康コーチです。以下のユーザーの睡眠・心拍数データを見て、日本語で短く（2〜3文）励ましと気づきのコメントをしてください。データの数字を直接引用しながら、具体的で温かみのあるコメントをお願いします。絵文字を1〜2個使ってください。
 
-function onDragOver(e) {
-  e.preventDefault();
-  document.getElementById('dropZone').style.borderColor = 'var(--blue)';
-}
-function onDragLeave(e) {
-  document.getElementById('dropZone').style.borderColor = 'var(--border)';
-}
-function onDrop(e) {
-  e.preventDefault();
-  document.getElementById('dropZone').style.borderColor = 'var(--border)';
-  const file = e.dataTransfer.files[0];
-  if (file) loadCsvFile(file);
-}
-function onFileSelect(e) {
-  const file = e.target.files[0];
-  if (file) loadCsvFile(file);
-}
+直近7日間のデータ:
+- 平均安静時心拍数: ${avgBpm} bpm
+- 平均睡眠時間: ${avgSleep} 時間
+- 平均目覚め感: ${avgRefresh}/5
+- 平均中途覚醒: ${avgWake}回
+- アルコール飲んだ日数: ${alcoholDays}/7日
+- 連続記録: ${streak}日
+- 累計記録日数: ${data.length}日
+- 今日の心拍数: ${latest.bpm} bpm
+- 今日の睡眠: ${latest.sleep}時間`;
 
-function loadCsvFile(file) {
-  csvRawBuffer = null;
-  document.getElementById('csvFileName').textContent = file.name;
-
-  // ファイル名から年月を自動判定（例: 202603 → 2026-03）
-  const m = file.name.match(/(\d{4})(\d{2})/);
-  if (m) {
-    document.getElementById('csvYearMonth').value = `${m[1]}-${m[2]}`;
-  }
-
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    csvRawBuffer = e.target.result;
-    document.getElementById('parseCsvBtn').disabled = false;
-    document.getElementById('parseCsvBtn').textContent = '📥 読み込む（' + file.name + '）';
-  };
-  reader.readAsArrayBuffer(file);
-}
-
-// Shift-JIS / CP932 デコーダ（TextDecoderがcp932未対応の環境用フォールバック付き）
-function decodeCp932(buffer) {
   try {
-    return new TextDecoder('shift_jis').decode(buffer);
-  } catch(e) {
-    return new TextDecoder('utf-8').decode(buffer);
-  }
-}
-
-// CSV文字列をパース（ダブルクォート対応）
-function parseCsvText(text) {
-  const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
-  return lines.map(line => {
-    const cols = [];
-    let cur = '', inQ = false;
-    for (let i = 0; i < line.length; i++) {
-      const c = line[i];
-      if (c === '"') { inQ = !inQ; }
-      else if (c === ',' && !inQ) { cols.push(cur.trim()); cur = ''; }
-      else { cur += c; }
-    }
-    cols.push(cur.trim());
-    return cols;
-  }).filter(r => r.some(c => c !== ''));
-}
-
-function clearCsv() {
-  csvRawBuffer = null;
-  scheduleRows = [];
-  document.getElementById('csvFileName').textContent = 'Shift-JIS形式のCSVに対応';
-  document.getElementById('csvFileInput').value = '';
-  document.getElementById('parseCsvBtn').disabled = true;
-  document.getElementById('parseCsvBtn').textContent = '📥 読み込む';
-  document.getElementById('csvPreview').style.display = 'none';
-}
-
-function parseCsv() {
-  if (!csvRawBuffer) { alert('CSVファイルを選択してください'); return; }
-
-  const text = decodeCp932(csvRawBuffer);
-  const rows = parseCsvText(text);
-  if (rows.length < 2) { alert('データが見つかりません'); return; }
-
-  const yearMonth = document.getElementById('csvYearMonth').value; // "2026-03"
-  if (!yearMonth) { alert('年月を指定してください'); return; }
-
-  // ヘッダー行を確認して列インデックスを特定
-  const header = rows[0];
-  const idx = {
-    nurse1:   header.indexOf('職員名１'),
-    nurse2:   header.indexOf('職員名２'),
-    nurse3:   header.indexOf('職員名３'),
-    date:     header.indexOf('日付'),
-    client:   header.indexOf('利用者'),
-    startTime:header.indexOf('開始時間'),
-    endTime:  header.indexOf('終了時間'),
-  };
-
-  // 旧フォーマット（看護師名,利用者名,訪問日,訪問時間,訪問順序）にも対応
-  const isOldFormat = idx.nurse1 === -1;
-  if (isOldFormat) {
-    // 旧フォーマット処理
-    scheduleRows = [];
-    const errors = [];
-    rows.slice(1).forEach((cols, i) => {
-      if (cols.length < 4) return;
-      const [nurseName, clientName, date, time, order] = cols;
-      const nurse = nurses.find(n => n.name === nurseName);
-      const client = clients.find(c => c.name === clientName);
-      scheduleRows.push({ nurseName, clientName, date, time, order: parseInt(order)||1, nurseFound:!!nurse, clientFound:!!client, nurse, client });
-    });
-    renderCsvPreview();
-    return;
-  }
-
-  // 新フォーマット（実際のスケジュールCSV）
-  scheduleRows = [];
-  const unmatched = { nurses: new Set(), clients: new Set() };
-
-  rows.slice(1).forEach((cols) => {
-    const nurseName = (cols[idx.nurse1] || '').replace(/\u3000/g, '　').trim();
-    if (!nurseName) return;
-
-    const dayStr = (cols[idx.date] || '').trim();
-    if (!dayStr || isNaN(parseInt(dayStr))) return;
-    const day = String(parseInt(dayStr)).padStart(2, '0');
-    const date = `${yearMonth}-${day}`;
-
-    const clientName = (cols[idx.client] || '').replace(/\u3000/g, '　').trim();
-    const startTime  = (cols[idx.startTime] || '').trim();
-
-    // マスタ照合（全角スペース正規化して比較）
-    const normalize = s => s.replace(/[\u3000\s]/g, '');
-    const nurse  = nurses.find(n => normalize(n.name) === normalize(nurseName));
-    const client = clients.find(c => normalize(c.name) === normalize(clientName));
-
-    if (!nurse)  unmatched.nurses.add(nurseName);
-    if (!client) unmatched.clients.add(clientName);
-
-    const nurse2Name = idx.nurse2 >= 0 ? (cols[idx.nurse2] || '').replace(/\u3000/g, '　').trim() : '';
-    const nurse3Name = idx.nurse3 >= 0 ? (cols[idx.nurse3] || '').replace(/\u3000/g, '　').trim() : '';
-
-    scheduleRows.push({
-      nurseName, clientName, date, time: startTime, order: 0,
-      nurseFound: !!nurse, clientFound: !!client, nurse, client,
-      nurse2Name, nurse3Name
-    });
-  });
-
-  // 開始時間でソート（同一看護師・同一日内）
-  scheduleRows.sort((a, b) => {
-    if (a.nurseName !== b.nurseName) return a.nurseName.localeCompare(b.nurseName);
-    if (a.date !== b.date) return a.date.localeCompare(b.date);
-    return a.time.localeCompare(b.time);
-  });
-  scheduleRows.forEach((r, i) => r.order = i + 1);
-
-  renderCsvPreview();
-  syncReportMonth(yearMonth);
-  localStorage.setItem('scheduleRows', JSON.stringify(scheduleRows));
-
-  const warns = [];
-  if (unmatched.nurses.size) warns.push(`未登録の看護師 ${unmatched.nurses.size}名:\n  ${[...unmatched.nurses].join('\n  ')}`);
-  if (unmatched.clients.size) warns.push(`未登録の利用者 ${unmatched.clients.size}名:\n  ${[...unmatched.clients].join('\n  ')}`);
-  if (warns.length) {
-    const msg = warns.join('\n\n') + '\n\n👆 マスタ登録タブで住所を登録すると距離計算できます。';
-    setTimeout(() => alert('⚠ 未登録あり\n\n' + msg), 100);
-  }
-}
-
-function renderCsvPreview() {
-  document.getElementById('csvPreview').style.display = 'block';
-  document.getElementById('csvRowBadge').textContent = scheduleRows.length + '件';
-
-  const tbody = document.getElementById('csvPreviewTable');
-  tbody.innerHTML = scheduleRows.map((r) => {
-    const statusHtml = (!r.nurseFound || !r.clientFound)
-      ? `<span class="tag tag-red">⚠ ${!r.nurseFound ? '看護師未登録' : '利用者未登録'}</span>`
-      : `<span class="tag tag-green">✓ OK</span>`;
-    return `
-      <tr>
-        <td>${r.nurseFound ? r.nurseName : `<span style="color:var(--red)">${r.nurseName}</span>`}</td>
-        <td>${r.clientFound ? r.clientName : `<span style="color:var(--red)">${r.clientName}</span>`}</td>
-        <td>${r.date}</td>
-        <td>${r.time}</td>
-        <td>${statusHtml}</td>
-      </tr>
-    `;
-  }).join('');
-}
-
-// ============================================================
-// DISTANCE CALCULATION
-// ============================================================
-async function calculateDistances() {
-  if (!apiKey) { openApiModal(); return; }
-
-  const invalidRows = scheduleRows.filter(r => !r.nurseFound || !r.clientFound);
-  if (invalidRows.length > 0) {
-    if (!confirm(`${invalidRows.length}件のデータに未登録の看護師/利用者があります。\nそれらをスキップして計算しますか？`)) return;
-  }
-
-  const validRows = scheduleRows.filter(r => r.nurseFound && r.clientFound);
-  if (!validRows.length) { alert('計算できる有効なデータがありません'); return; }
-
-  // Group by nurse + date
-  const groups = {};
-  validRows.forEach(r => {
-    const key = `${r.nurseName}__${r.date}`;
-    if (!groups[key]) groups[key] = { nurse: r.nurse, date: r.date, nurseName: r.nurseName, visits: [] };
-    groups[key].visits.push({ client: r.client, time: r.time, order: r.order });
-  });
-
-  // Sort visits by order within each group
-  Object.values(groups).forEach(g => {
-    g.visits.sort((a, b) => a.order - b.order);
-  });
-
-  showLoading(true);
-  calcAborted = false;
-  results = JSON.parse(localStorage.getItem('results') || '[]');
-
-  const groupList = Object.values(groups);
-  let processed = 0;
-  let successCount = 0;
-  const failedGroups = [];
-
-  for (const group of groupList) {
-    if (calcAborted) break;
-    updateLoadingText(`計算中... (${++processed}/${groupList.length})  ${group.nurseName} ${group.date}`);
-    try {
-      const waypoints = [group.nurse.address, ...group.visits.map(v => v.client.address), group.nurse.address];
-      const distKm = await getRouteDistance(waypoints);
-
-      const existingIdx = results.findIndex(r => r.nurseName === group.nurseName && r.date === group.date);
-      const entry = {
-        date: group.date,
-        nurseName: group.nurseName,
-        route: [group.nurseName + '(自宅)', ...group.visits.map(v => v.client.name), group.nurseName + '(自宅)'],
-        distanceKm: distKm,
-        visitCount: group.visits.length
-      };
-      if (existingIdx >= 0) results[existingIdx] = entry;
-      else results.push(entry);
-      successCount++;
-    } catch(e) {
-      failedGroups.push(`${group.nurseName} ${group.date}: ${e.message}`);
-    }
-    await sleep(300);
-  }
-
-  localStorage.setItem('results', JSON.stringify(results));
-  // 委託スタッフのガソリン代を自動計算して経費に保存
-  autoSaveContractGas(Object.values(groups)[0]?.date?.substring(0,7) || '');
-  showLoading(false);
-
-  if (calcAborted) {
-    alert(`⏹ 計算を中断しました。\n${successCount}件分の結果は保存されています。`);
-  } else {
-    let msg = `✅ 計算完了！ ${successCount}/${groupList.length} ルートの距離を取得しました。`;
-    if (failedGroups.length) {
-      msg += `\n\n⚠ 失敗 ${failedGroups.length}件:\n` + failedGroups.slice(0,5).join('\n');
-      if (failedGroups.length > 5) msg += `\n...他${failedGroups.length-5}件`;
-    }
-    alert(msg);
-  }
-  syncReportMonth(Object.values(groups)[0]?.date?.substring(0,7) || '');
-  switchTab('report');
-}
-
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbz94qDDWrQiWaTkzcz9i2LMh12lfEKKGGoBVoZMY0o8asA8QpVLHPdOo0L0mULMHg_bKQ/exec';
-
-async function callDistanceMatrixAPI(origin, destination) {
-  const url = `${GAS_URL}?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}&key=${encodeURIComponent(apiKey)}`;
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error('タイムアウト（20秒）')), 20000);
-    fetch(url)
-      .then(res => {
-        clearTimeout(timer);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json();
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:1000,
+        messages:[{role:'user',content:prompt}]
       })
-      .then(data => {
-        if (data.status !== 'OK') { reject(new Error(`Maps API: ${data.status} ${data.error_message||''}`)); return; }
-        const element = data.rows[0]?.elements[0];
-        if (!element || element.status !== 'OK') { reject(new Error(`ルート不明: ${element?.status}`)); return; }
-        resolve(element.distance.value);
-      })
-      .catch(err => { clearTimeout(timer); reject(err); });
-  });
-}
-
-async function getRouteDistance(waypoints) {
-  let totalMeters = 0;
-  for (let i = 0; i < waypoints.length - 1; i++) {
-    const meters = await callDistanceMatrixAPI(waypoints[i], waypoints[i+1]);
-    totalMeters += meters;
+    });
+    const json=await res.json();
+    const text=json.content?.[0]?.text||'データを蓄積するともっと詳しいコメントができます！';
+    el.className='ai-comment-text';
+    // typewriter effect
+    el.textContent='';
+    let i=0;
+    const timer=setInterval(()=>{
+      el.textContent+=text[i++];
+      if(i>=text.length) clearInterval(timer);
+    },18);
+  } catch {
+    el.className='ai-comment-text';
+    el.textContent='データを元にコメントを生成できませんでした。記録を続けてください！';
   }
-  return Math.round(totalMeters / 100) / 10;
 }
 
-// ============================================================
-// INCENTIVE（歩合）
-// ============================================================
-function initIncentiveMonths() {
-  const sel = document.getElementById('incentiveMonth');
-  for (let m = 1; m <= 12; m++) {
-    const val = `2026-${String(m).padStart(2,'0')}`;
-    const opt = document.createElement('option');
-    opt.value = val;
-    opt.textContent = `2026年${m}月`;
-    sel.appendChild(opt);
-  }
-  sel.value = '2026-03';
-  sel.addEventListener('change', renderIncentiveTab);
+// ── Form controls ──
+function adjust(type,delta) {
+  if(type==='sleep'){ sleepVal=Math.max(0,Math.min(12,Math.round((sleepVal+delta)*2)/2)); document.getElementById('sleep-val').textContent=sleepVal.toFixed(1); }
+  else if(type==='wake'){ wakeVal=Math.max(0,Math.min(20,wakeVal+delta)); document.getElementById('wake-val').textContent=wakeVal; }
+  else if(type==='meal'){ mealVal=Math.max(0,Math.min(12,Math.round((mealVal+delta)*2)/2)); document.getElementById('meal-val').textContent=mealVal.toFixed(1); }
+}
+function clearTime(id){ document.getElementById(id).value=''; }
+function setRefresh(v){ refreshVal=v; document.querySelectorAll('#rf-morning .rf-btn').forEach(b=>b.classList.toggle('active-morning',+b.dataset.v===v)); }
+function setDaySleep(v){ daySleepVal=v; document.querySelectorAll('#rf-day .rf-btn').forEach(b=>b.classList.toggle('active-day',+b.dataset.v===v)); }
+function setAlcohol(v){ alcoholVal=v; ['none',1,2].forEach((k,i)=>document.getElementById(`chip-alcohol-${k}`).classList.toggle('active-alcohol',v===i)); }
+function setCaffeine(v){ caffeineVal=v; ['none',1,2].forEach((k,i)=>document.getElementById(`chip-caff-${k}`).classList.toggle('active-caffeine',v===i)); }
+
+// ── Edit ──
+function startEdit(date) {
+  const entry=loadData().find(e=>e.date===date); if(!entry) return;
+  editingDate=date;
+  document.getElementById('bpm-input').value=entry.bpm;
+  document.getElementById('bedtime-input').value=entry.bedtime||'';
+  document.getElementById('note-input').value=entry.note||'';
+  sleepVal=entry.sleep||7; document.getElementById('sleep-val').textContent=sleepVal.toFixed(1);
+  wakeVal=entry.wake||0;   document.getElementById('wake-val').textContent=wakeVal;
+  mealVal=entry.meal||2;   document.getElementById('meal-val').textContent=mealVal.toFixed(1);
+  setRefresh(entry.refresh||0); setDaySleep(entry.daySleep||0); setAlcohol(entry.alcohol||0); setCaffeine(entry.caffeine||0);
+  document.getElementById('edit-banner-date').textContent=formatDateJa(date);
+  document.getElementById('edit-banner').classList.add('show');
+  document.getElementById('save-btn').textContent='変更を保存する';
+  document.getElementById('save-btn').style.background='var(--warn)';
+  document.querySelectorAll('.log-item').forEach(el=>el.classList.remove('editing'));
+  document.querySelector(`[data-date="${date}"]`)?.classList.add('editing');
+  window.scrollTo({top:0,behavior:'smooth'});
 }
 
-function calcIncentiveUnit(nurseName, startTime) {
-  const nurse = nurses.find(n => {
-    const normalize = s => s.replace(/[\u3000\s]/g, '');
-    return normalize(n.name) === normalize(nurseName);
-  });
-  const isContract = nurse?.employType === 'contract';
-  const isNight = startTime >= '18:00';
-  if (isContract) return isNight ? 3000 : 2500;
-  return isNight ? 1000 : 500;
+function cancelEdit() {
+  editingDate=null;
+  document.getElementById('edit-banner').classList.remove('show');
+  document.getElementById('save-btn').textContent='記録する';
+  document.getElementById('save-btn').style.background='';
+  document.getElementById('bpm-input').value='';
+  document.getElementById('note-input').value='';
+  document.getElementById('bedtime-input').value='';
+  sleepVal=7; document.getElementById('sleep-val').textContent='7.0';
+  wakeVal=0;  document.getElementById('wake-val').textContent='0';
+  mealVal=2;  document.getElementById('meal-val').textContent='2.0';
+  setRefresh(0); setDaySleep(0); setAlcohol(0); setCaffeine(0);
+  document.querySelectorAll('.log-item').forEach(el=>el.classList.remove('editing'));
 }
 
-function renderIncentiveTab() {
-  const month = document.getElementById('incentiveMonth').value;
+// ── Save ──
+async function saveEntry() {
+  const bpm=parseInt(document.getElementById('bpm-input').value);
+  if(!bpm||bpm<30||bpm>200){ showToast('⚠ 心拍数を正しく入力してください','#e8624a'); return; }
+  const note=document.getElementById('note-input').value.trim();
+  const bedtime=document.getElementById('bedtime-input').value;
+  const date=editingDate||getTodayStr();
+  const data=loadData();
+  const entry={date,bpm,sleep:sleepVal,wake:wakeVal,refresh:refreshVal,daySleep:daySleepVal,bedtime,meal:mealVal,alcohol:alcoholVal,caffeine:caffeineVal,note};
+  const idx=data.findIndex(e=>e.date===date);
+  if(idx>=0) data[idx]=entry; else data.push(entry);
+  data.sort((a,b)=>a.date.localeCompare(b.date));
+  saveData(data);
 
-  // scheduleRowsから対象月のデータを使う
-  // localStorageに保存されたscheduleRowsがない場合は現在のscheduleRowsを使う
-  const savedRows = JSON.parse(localStorage.getItem('scheduleRows') || '[]');
-  const rows = savedRows.length ? savedRows : scheduleRows;
-  const monthRows = rows.filter(r => r.date && r.date.startsWith(month));
+  // badge check
+  const newBadges=checkBadges(data);
 
-  if (!monthRows.length) {
-    document.getElementById('incentiveTable').innerHTML =
-      '<tr class="empty-row"><td colspan="6">データがありません。CSVを読み込んでください。</td></tr>';
-    document.getElementById('incentiveDetailCard').style.display = 'none';
-    document.getElementById('incentiveTotalAll').innerHTML = '—<span class="stat-unit"> 円</span>';
-    document.getElementById('incentiveNormalCount').innerHTML = '—<span class="stat-unit"> 件</span>';
-    document.getElementById('incentiveNightCount').innerHTML = '—<span class="stat-unit"> 件</span>';
-    return;
-  }
+  const isEdit=!!editingDate;
+  cancelEdit();
+  showToast(isEdit?'✏️ 編集を保存しました！':'✓ 記録しました！');
+  render();
 
-  // 看護師ごとに集計（同行スタッフも含む）
-  const byNurse = {};
-
-  const addVisit = (nurseName, date, clientName, startTime) => {
-    if (!nurseName) return;
-    if (!byNurse[nurseName]) byNurse[nurseName] = { normal: 0, night: 0, total: 0, details: [] };
-    const isNight = startTime >= '18:00';
-    const unit = calcIncentiveUnit(nurseName, startTime);
-    if (isNight) byNurse[nurseName].night++;
-    else byNurse[nurseName].normal++;
-    byNurse[nurseName].total += unit;
-    byNurse[nurseName].details.push({ date, clientName, startTime, isNight, unit });
-  };
-
-  monthRows.forEach(r => {
-    addVisit(r.nurseName, r.date, r.clientName, r.time);
-    if (r.nurse2Name) addVisit(r.nurse2Name, r.date, r.clientName, r.time);
-    if (r.nurse3Name) addVisit(r.nurse3Name, r.date, r.clientName, r.time);
-  });
-
-  const nurseList = Object.keys(byNurse).sort();
-  const totalAll = nurseList.reduce((s, n) => s + byNurse[n].total, 0);
-  const totalNormal = nurseList.reduce((s, n) => s + byNurse[n].normal, 0);
-  const totalNight = nurseList.reduce((s, n) => s + byNurse[n].night, 0);
-
-  document.getElementById('incentiveTotalAll').innerHTML = `${totalAll.toLocaleString()}<span class="stat-unit"> 円</span>`;
-  document.getElementById('incentiveNormalCount').innerHTML = `${totalNormal}<span class="stat-unit"> 件</span>`;
-  document.getElementById('incentiveNightCount').innerHTML = `${totalNight}<span class="stat-unit"> 件</span>`;
-
-  // 看護師別テーブル
-  const tbody = document.getElementById('incentiveTable');
-  tbody.innerHTML = nurseList.map(name => {
-    const d = byNurse[name];
-    const nurse = nurses.find(n => n.name.replace(/[\u3000\s]/g,'') === name.replace(/[\u3000\s]/g,''));
-    const typeTag = nurse?.employType === 'contract'
-      ? `<span class="tag tag-orange">委託</span>`
-      : `<span class="tag tag-blue">正社員</span>`;
-    return `
-      <tr>
-        <td><strong>${name}</strong></td>
-        <td>${typeTag}</td>
-        <td>${d.normal}件</td>
-        <td>${d.night > 0 ? `<span class="tag tag-purple">${d.night}件</span>` : '—'}</td>
-        <td>${d.normal + d.night}件</td>
-        <td><strong style="font-family:var(--mono);color:var(--orange)">¥${d.total.toLocaleString()}</strong></td>
-      </tr>
-    `;
-  }).join('');
-
-  // 日別明細
-  document.getElementById('incentiveDetailCard').style.display = 'block';
-  const detailTbody = document.getElementById('incentiveDetailTable');
-  const allDetails = [];
-  nurseList.forEach(name => {
-    byNurse[name].details.forEach(d => allDetails.push({ nurseName: name, ...d }));
-  });
-  allDetails.sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime));
-  detailTbody.innerHTML = allDetails.map(d => `
-    <tr>
-      <td>${d.date}</td>
-      <td>${d.nurseName}</td>
-      <td>${d.clientName}</td>
-      <td>${d.startTime} ${d.isNight ? '<span class="tag tag-purple" style="font-size:10px;">夜間</span>' : ''}</td>
-      <td>${d.isNight ? '夜間' : '通常'}</td>
-      <td style="font-family:var(--mono)">¥${d.unit.toLocaleString()}</td>
-    </tr>
-  `).join('');
-}
-
-
-// ============================================================
-function getAllMonths() {
-  const results = JSON.parse(localStorage.getItem('results') || '[]');
-  const expenses = JSON.parse(localStorage.getItem('expenses') || '{}');
-  const months = new Set();
-  results.forEach(r => { if (r.date) months.add(r.date.substring(0,7)); });
-  Object.keys(expenses).forEach(m => months.add(m));
-  return [...months].sort();
-}
-
-function renderStorageTab() {
-  const months = getAllMonths();
-  const results = JSON.parse(localStorage.getItem('results') || '[]');
-  const expenses = JSON.parse(localStorage.getItem('expenses') || '{}');
-
-  // 月一覧テーブル
-  const tbody = document.getElementById('storageMonthTable');
-  if (!months.length) {
-    tbody.innerHTML = '<tr class="empty-row"><td colspan="5">保存データがありません</td></tr>';
-  } else {
-    tbody.innerHTML = months.map(m => {
-      const [y, mo] = m.split('-');
-      const monthLabel = `${y}年${parseInt(mo)}月`;
-      const schedCount = results.filter(r => r.date.startsWith(m)).length;
-      const distCount  = results.filter(r => r.date.startsWith(m) && r.distanceKm > 0).length;
-      const expKeys    = Object.keys(expenses[m] || {});
-      const hasExp     = expKeys.length > 0;
-      return `
-        <tr>
-          <td><strong>${monthLabel}</strong></td>
-          <td>${schedCount > 0
-            ? `<span class="tag tag-green">${schedCount}日分</span>`
-            : `<span style="color:var(--text3)">—</span>`}</td>
-          <td>${distCount > 0
-            ? `<span class="tag tag-blue">${distCount}ルート</span>`
-            : `<span style="color:var(--text3)">—</span>`}</td>
-          <td>${hasExp
-            ? `<span class="tag tag-orange">${expKeys.length}名分</span>`
-            : `<span style="color:var(--text3)">—</span>`}</td>
-          <td>
-            <button class="btn btn-secondary btn-sm" onclick="exportMonthCsv('${m}')">📤 CSV</button>
-            <button class="btn btn-secondary btn-sm" onclick="exportMonthJson('${m}')" style="margin-left:4px;">💾 JSON</button>
-          </td>
-        </tr>
-      `;
-    }).join('');
+  // show new badge popups sequentially
+  for (const badge of newBadges) {
+    await new Promise(r=>setTimeout(r,500));
+    showBadgePopup(badge);
+    await new Promise(r=>setTimeout(r,3200));
   }
 
-  // 削除用セレクト更新
-  const sel = document.getElementById('deleteTargetMonth');
-  sel.innerHTML = '<option value="">-- 月を選択 --</option>';
-  months.forEach(m => {
-    const [y, mo] = m.split('-');
-    const opt = document.createElement('option');
-    opt.value = m;
-    opt.textContent = `${y}年${parseInt(mo)}月`;
-    sel.appendChild(opt);
-  });
+  // AI comment (non-blocking)
+  fetchAIComment(data);
 }
 
-// 月別JSONエクスポート
-function exportMonthJson(month) {
-  const results = JSON.parse(localStorage.getItem('results') || '[]');
-  const expenses = JSON.parse(localStorage.getItem('expenses') || '{}');
-  const data = {
-    month,
-    exportedAt: new Date().toISOString(),
-    results: results.filter(r => r.date.startsWith(month)),
-    expenses: expenses[month] || {}
-  };
-  downloadJson(data, `kango_${month}.json`);
+// ── Delete ──
+function deleteEntry(date) {
+  if(!confirm(`${formatDateJa(date)} のデータを削除しますか？`)) return;
+  if(editingDate===date) cancelEdit();
+  saveData(loadData().filter(e=>e.date!==date));
+  render();
 }
 
-// 月別CSVエクスポート（レポートタブと同じ内容）
-function exportMonthCsv(month) {
-  const sel = document.getElementById('reportMonth');
-  if (sel) sel.value = month;
-  exportCsv();
+// ── Export / Import ──
+function exportCSV() {
+  const data=loadData(); if(!data.length){ showToast('⚠ データがありません','#e8624a'); return; }
+  const header=['日付','心拍数(BPM)','睡眠時間(h)','中途覚醒(回)','目覚め感(1-5)','日中眠気(1-5)','就寝時間','最終食事(h前)','アルコール','カフェイン','メモ'];
+  const rows=data.map(e=>[e.date,e.bpm,(e.sleep||0).toFixed(1),e.wake||0,e.refresh||'',e.daySleep||'',e.bedtime||'',(e.meal||0).toFixed(1),ALCOHOL_LABEL[e.alcohol||0],CAFFEINE_LABEL[e.caffeine||0],`"${(e.note||'').replace(/"/g,'""')}"`]);
+  download('\uFEFF'+[header,...rows].map(r=>r.join(',')).join('\n'),`morning-log-${getTodayStr()}.csv`,'text/csv');
+  showToast('📤 CSVを書き出しました！');
 }
-
-// 全データバックアップ
-function downloadBackup() {
-  const data = {
-    version: 1,
-    exportedAt: new Date().toISOString(),
-    nurses:   JSON.parse(localStorage.getItem('nurses')   || '[]'),
-    clients:  JSON.parse(localStorage.getItem('clients')  || '[]'),
-    results:  JSON.parse(localStorage.getItem('results')  || '[]'),
-    expenses: JSON.parse(localStorage.getItem('expenses') || '{}'),
-  };
-  downloadJson(data, `kango_backup_${new Date().toISOString().slice(0,10)}.json`);
+function exportJSON() {
+  const data=loadData(); if(!data.length){ showToast('⚠ データがありません','#e8624a'); return; }
+  download(JSON.stringify(data,null,2),`morning-log-${getTodayStr()}.json`,'application/json');
+  showToast('💾 JSONを保存しました！');
 }
-
-function downloadJson(data, filename) {
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a'); a.href = url; a.download = filename;
-  a.click(); URL.revokeObjectURL(url);
+function download(content,filename,type) {
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([content],{type})); a.download=filename; a.click();
 }
-
-// バックアップ復元
-function restoreBackup(e) {
-  const file = e.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = (ev) => {
+function toggleImport(){ document.getElementById('import-area').classList.toggle('open'); }
+function importJSON(event) {
+  const file=event.target.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=e=>{
     try {
-      const data = JSON.parse(ev.target.result);
-      if (!data.version) throw new Error('形式が違います');
-      if (!confirm(`バックアップ（${data.exportedAt?.slice(0,10)}）から復元しますか？\n現在のデータは上書きされます。`)) return;
-      if (data.nurses)   { localStorage.setItem('nurses',   JSON.stringify(data.nurses));   nurses = data.nurses; }
-      if (data.clients)  { localStorage.setItem('clients',  JSON.stringify(data.clients));  clients = data.clients; }
-      if (data.results)  { localStorage.setItem('results',  JSON.stringify(data.results));  results = data.results; }
-      if (data.expenses) { localStorage.setItem('expenses', JSON.stringify(data.expenses)); }
-      renderNurseTable();
-      renderClientTable();
-      renderStorageTab();
-      alert('✅ 復元しました！');
-    } catch(err) {
-      alert('❌ 復元に失敗しました: ' + err.message);
-    }
+      const imported=JSON.parse(e.target.result); if(!Array.isArray(imported)) throw 0;
+      const merged=[...loadData()]; let added=0,updated=0;
+      imported.forEach(entry=>{ if(!entry.date||!entry.bpm) return; const idx=merged.findIndex(e=>e.date===entry.date); if(idx>=0){merged[idx]=entry;updated++;}else{merged.push(entry);added++;} });
+      merged.sort((a,b)=>a.date.localeCompare(b.date)); saveData(merged);
+      showToast(`✓ ${added}件追加、${updated}件更新`);
+      document.getElementById('import-area').classList.remove('open'); event.target.value=''; render();
+    } catch { showToast('⚠ ファイルの読み込みに失敗しました','#e8624a'); }
   };
   reader.readAsText(file);
-  e.target.value = '';
 }
 
-// 月別削除
-function deleteMonthData() {
-  const month = document.getElementById('deleteTargetMonth').value;
-  if (!month) { alert('月を選択してください'); return; }
-  const [y, mo] = month.split('-');
-  if (!confirm(`${y}年${parseInt(mo)}月のデータ（距離計算・経費）を削除しますか？`)) return;
-
-  const results = JSON.parse(localStorage.getItem('results') || '[]');
-  localStorage.setItem('results', JSON.stringify(results.filter(r => !r.date.startsWith(month))));
-
-  const expenses = JSON.parse(localStorage.getItem('expenses') || '{}');
-  delete expenses[month];
-  localStorage.setItem('expenses', JSON.stringify(expenses));
-
-  renderStorageTab();
-  alert(`✅ ${y}年${parseInt(mo)}月のデータを削除しました`);
+// ── Toast ──
+function showToast(msg,color) {
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.style.background=color||'#5bb88a';
+  t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2200);
 }
 
-// 全リセット
-function deleteAllData() {
-  if (!confirm('⚠ 全データ（マスタ含む）を削除します。本当によろしいですか？')) return;
-  if (!confirm('本当に削除しますか？この操作は元に戻せません。')) return;
-  ['nurses','clients','results','expenses'].forEach(k => localStorage.removeItem(k));
-  nurses = []; clients = []; results = [];
-  renderNurseTable(); renderClientTable(); renderStorageTab();
-  alert('✅ 全データをリセットしました');
+// ── Chart ──
+function switchTab(tab) {
+  currentTab=tab;
+  document.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active',['hr','sleep','rf','day','meal'][i]===tab));
+  renderChart(loadData());
 }
 
-
-function autoSaveContractGas(month) {
-  if (!month) return;
-  const allResults = JSON.parse(localStorage.getItem('results') || '[]');
-  const expenses = getExpenses();
-  if (!expenses[month]) expenses[month] = {};
-  const normalize = s => (s||'').replace(/[\u3000\s]/g, '');
-  nurses.filter(n => n.employType === 'contract').forEach(n => {
-    const totalKm = allResults
-      .filter(r => r.date.startsWith(month) && normalize(r.nurseName) === normalize(n.name))
-      .reduce((s, r) => s + (r.distanceKm || 0), 0);
-    if (!expenses[month][n.name]) expenses[month][n.name] = { gas:'', parking:'', other:'', note:'' };
-    expenses[month][n.name].gas = String(Math.round(totalKm * 20));
-  });
-  localStorage.setItem('expenses', JSON.stringify(expenses));
+function bpmZone(bpm) {
+  if(bpm<50) return{label:'低め',color:'#e8c14a'};
+  if(bpm<=60) return{label:'優秀',color:'#5bb88a'};
+  if(bpm<=70) return{label:'正常',color:'#5bb88a'};
+  if(bpm<=80) return{label:'普通',color:'#f0a070'};
+  if(bpm<=90) return{label:'高め',color:'#e8624a'};
+  return{label:'要注意',color:'#e8624a'};
 }
 
-function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
-
-function showLoading(show) {
-  document.getElementById('loadingOverlay').classList.toggle('open', show);
-}
-function updateLoadingText(t) {
-  updateLoadingText._current = t;
-  const el = document.getElementById('loadingText');
-  if (el) el.textContent = t;
-}
-
-// ============================================================
-// EXPENSE
-// ============================================================
-function initExpenseMonths() {
-  const sel = document.getElementById('expenseMonth');
-  for (let m = 1; m <= 12; m++) {
-    const val = `2026-${String(m).padStart(2,'0')}`;
-    const opt = document.createElement('option');
-    opt.value = val;
-    opt.textContent = `2026年${m}月`;
-    sel.appendChild(opt);
-  }
-  sel.value = '2026-05';
-  sel.addEventListener('change', renderExpenseTable);
+function renderStats(data) {
+  if(!data.length) return;
+  const avg=arr=>arr.reduce((s,v)=>s+v,0)/arr.length;
+  const bpms=data.map(e=>e.bpm);
+  document.getElementById('st-hr').textContent=Math.round(avg(bpms));
+  document.getElementById('st-hrmin').textContent=Math.min(...bpms);
+  document.getElementById('st-sleep').textContent=avg(data.map(e=>e.sleep||0)).toFixed(1);
+  document.getElementById('st-wake').textContent=avg(data.map(e=>e.wake||0)).toFixed(1);
+  const rfs=data.filter(e=>e.refresh).map(e=>e.refresh);
+  document.getElementById('st-rf').textContent=rfs.length?REFRESH_EMOJI[Math.round(avg(rfs))]:'—';
+  document.getElementById('st-days').textContent=data.length;
 }
 
-function getExpenses() {
-  return JSON.parse(localStorage.getItem('expenses') || '{}');
-}
-
-function renderExpenseTable() {
-  const month = document.getElementById('expenseMonth').value;
-  const expenses = getExpenses();
-  const monthData = expenses[month] || {};
-  const allResults = JSON.parse(localStorage.getItem('results') || '[]');
-  const tbody = document.getElementById('expenseInputTable');
-
-  if (!nurses.length) {
-    tbody.innerHTML = '<tr class="empty-row"><td colspan="6">看護師マスタに看護師を登録してください</td></tr>';
-    updateExpenseSummary(month);
-    return;
-  }
-
-  tbody.innerHTML = nurses.map(n => {
-    const e = monthData[n.name] || { gas: '', parking: '', other: '', note: '' };
-    const isContract = n.employType === 'contract';
-
-    // 委託スタッフ：月の走行距離合計×20円を自動計算
-    let autoGasVal = 0;
-    if (isContract) {
-      const normalize = s => s.replace(/[\u3000\s]/g, '');
-      const totalKm = allResults
-        .filter(r => r.date.startsWith(month) && normalize(r.nurseName) === normalize(n.name))
-        .reduce((s, r) => s + (r.distanceKm || 0), 0);
-      autoGasVal = Math.round(totalKm * 20);
-    }
-
-    const gasVal = isContract ? autoGasVal : (parseInt(e.gas) || 0);
-    const subtotal = gasVal + (parseInt(e.parking)||0) + (parseInt(e.other)||0);
-    const typeTag = isContract
-      ? `<span class="tag tag-orange" style="font-size:10px;">委託</span>`
-      : `<span class="tag tag-blue" style="font-size:10px;">正社員</span>`;
-
-    const gasCell = isContract
-      ? `<td style="font-family:var(--mono);text-align:right;color:var(--text2);">
-           ¥${autoGasVal.toLocaleString()}
-           <div style="font-size:10px;color:var(--text3);">距離×20円 (自動)</div>
-         </td>`
-      : `<td><input type="number" min="0" class="expense-input${e.gas ? ' filled' : ''}" data-nurse="${n.name}" data-field="gas"
-           value="${e.gas}" placeholder="0" style="width:100%;text-align:right;"
-           oninput="onExpenseInput(this)" /></td>`;
-
-    return `
-      <tr>
-        <td><strong>${n.name}</strong> ${typeTag}</td>
-        ${gasCell}
-        <td><input type="number" min="0" class="expense-input${e.parking ? ' filled' : ''}" data-nurse="${n.name}" data-field="parking"
-          value="${e.parking}" placeholder="0" style="width:100%;text-align:right;"
-          oninput="onExpenseInput(this)" /></td>
-        <td><input type="number" min="0" class="expense-input${e.other ? ' filled' : ''}" data-nurse="${n.name}" data-field="other"
-          value="${e.other}" placeholder="0" style="width:100%;text-align:right;"
-          oninput="onExpenseInput(this)" /></td>
-        <td><input type="text" class="expense-input${e.note ? ' filled' : ''}" data-nurse="${n.name}" data-field="note"
-          value="${e.note}" placeholder="メモ" style="width:100%;"
-          oninput="onExpenseInput(this)" /></td>
-        <td id="subtotal-${n.name.replace(/[\s　]/g,'_')}" style="font-family:var(--mono);font-weight:600;color:var(--orange)">
-          ${subtotal > 0 ? '¥' + subtotal.toLocaleString() : '—'}
-        </td>
-      </tr>
-    `;
-  }).join('');
-
-  // 委託スタッフの自動計算値を保存
-  const updatedExpenses = getExpenses();
-  if (!updatedExpenses[month]) updatedExpenses[month] = {};
-  nurses.filter(n => n.employType === 'contract').forEach(n => {
-    const normalize = s => s.replace(/[\u3000\s]/g, '');
-    const totalKm = allResults
-      .filter(r => r.date.startsWith(month) && normalize(r.nurseName) === normalize(n.name))
-      .reduce((s, r) => s + (r.distanceKm || 0), 0);
-    if (!updatedExpenses[month][n.name]) updatedExpenses[month][n.name] = { gas:'', parking:'', other:'', note:'' };
-    updatedExpenses[month][n.name].gas = String(Math.round(totalKm * 20));
-  });
-  localStorage.setItem('expenses', JSON.stringify(updatedExpenses));
-
-  updateExpenseSummary(month);
-  updateExpenseProgress(month);
-}
-
-function onExpenseInput(el) {
-  const month = document.getElementById('expenseMonth').value;
-  const nurseName = el.dataset.nurse;
-  const field = el.dataset.field;
-  const val = el.value;
-
-  // 入力済みスタイル
-  if (val !== '') el.classList.add('filled');
-  else el.classList.remove('filled');
-
-  const expenses = getExpenses();
-  if (!expenses[month]) expenses[month] = {};
-  if (!expenses[month][nurseName]) expenses[month][nurseName] = { gas:'', parking:'', other:'', note:'' };
-  expenses[month][nurseName][field] = val;
-  localStorage.setItem('expenses', JSON.stringify(expenses));
-
-  // Update subtotal cell
-  const e = expenses[month][nurseName];
-  const sub = (parseInt(e.gas)||0) + (parseInt(e.parking)||0) + (parseInt(e.other)||0);
-  const cell = document.getElementById('subtotal-' + nurseName.replace(/[\s　]/g,'_'));
-  if (cell) cell.textContent = sub > 0 ? '¥' + sub.toLocaleString() : '—';
-
-  updateExpenseSummary(month);
-  updateExpenseProgress(month);
-  showLastSaved();
-}
-
-function updateExpenseSummary(month) {
-  const expenses = getExpenses();
-  const monthData = expenses[month] || {};
-  let gas = 0, parking = 0, other = 0;
-  Object.values(monthData).forEach(e => {
-    gas += parseInt(e.gas) || 0;
-    parking += parseInt(e.parking) || 0;
-    other += parseInt(e.other) || 0;
-  });
-  document.getElementById('sumGas').innerHTML = `${gas.toLocaleString()}<span class="stat-unit"> 円</span>`;
-  document.getElementById('sumParking').innerHTML = `${parking.toLocaleString()}<span class="stat-unit"> 円</span>`;
-  document.getElementById('sumOther').innerHTML = `${other.toLocaleString()}<span class="stat-unit"> 円</span>`;
-}
-
-function updateExpenseProgress(month) {
-  if (!nurses.length) return;
-  const expenses = getExpenses();
-  const monthData = expenses[month] || {};
-
-  // 正社員：ガソリン代が入力済みかどうか、委託：パーキング or その他 or 入力不要
-  const total = nurses.length;
-  const remaining = [];
-
-  nurses.forEach(n => {
-    const e = monthData[n.name] || {};
-    const isContract = n.employType === 'contract';
-    // 正社員はガソリン代が空なら未完了、委託はガソリン自動なのでパーキング+立替で判断（任意なので入力されていれば完了扱い）
-    const done = isContract
-      ? true  // 委託は自動計算なので常に「完了」扱い
-      : (e.gas !== '' && e.gas !== undefined && e.gas !== null);
-    if (!done) remaining.push(n.name);
-  });
-
-  const done = total - remaining.length;
-  const pct = total > 0 ? Math.round(done / total * 100) : 0;
-
-  const wrap = document.getElementById('expenseProgressWrap');
-  const fill = document.getElementById('expenseProgressFill');
-  const label = document.getElementById('expenseProgressLabel');
-  const remList = document.getElementById('expenseRemainingList');
-
-  wrap.style.display = 'block';
-  fill.style.width = pct + '%';
-  fill.style.background = pct === 100 ? 'var(--accent)' : pct > 50 ? 'var(--blue)' : 'var(--orange)';
-  label.textContent = `${done} / ${total} 名完了`;
-
-  if (remaining.length > 0) {
-    remList.innerHTML = `⏳ 未入力（正社員・ガソリン代）: ${remaining.join('、')}`;
-  } else {
-    remList.innerHTML = `<span style="color:var(--accent)">✅ 全員入力済み</span>`;
-  }
-}
-
-function showLastSaved() {
-  const now = new Date();
-  const hm = `${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
-  const el = document.getElementById('lastSavedLabel');
-  if (el) el.textContent = `最終保存 ${hm}`;
-}
-
-function saveExpenses() {
-  alert('✅ 経費を保存しました。');
-}
-
-function clearExpenses() {
-  const month = document.getElementById('expenseMonth').value;
-  if (!confirm(`${month}の経費データをクリアしますか？`)) return;
-  const expenses = getExpenses();
-  delete expenses[month];
-  localStorage.setItem('expenses', JSON.stringify(expenses));
-  renderExpenseTable();
-}
-
-// ============================================================
-// ============================================================
-function initReportMonths() {
-  const sel = document.getElementById('reportMonth');
-  // 既存optionをクリア（-- 月を選択 -- は残す）
-  while (sel.options.length > 1) sel.remove(1);
-  for (let m = 1; m <= 12; m++) {
-    const val = `2026-${String(m).padStart(2,'0')}`;
-    const opt = document.createElement('option');
-    opt.value = val;
-    opt.textContent = `2026年${m}月`;
-    sel.appendChild(opt);
-  }
-  sel.addEventListener('change', renderReport);
-}
-
-// CSV読み込み後にレポート月を自動連動させる
-function syncReportMonth(yearMonth) {
-  const sel = document.getElementById('reportMonth');
-  if (sel && yearMonth) {
-    sel.value = yearMonth;
-    renderReport();
-  }
-}
-
-function renderReport() {
-  const month = document.getElementById('reportMonth').value;
-  const allResults = JSON.parse(localStorage.getItem('results') || '[]');
-  const filtered = month ? allResults.filter(r => r.date.startsWith(month)) : allResults;
-  const expenses = getExpenses();
-  const monthExpenses = expenses[month] || {};
-
-  // Aggregate by nurse
-  const byNurse = {};
-  filtered.forEach(r => {
-    if (!byNurse[r.nurseName]) byNurse[r.nurseName] = { name: r.nurseName, km: 0, visits: 0, days: 0 };
-    byNurse[r.nurseName].km += r.distanceKm;
-    byNurse[r.nurseName].visits += r.visitCount;
-    byNurse[r.nurseName].days++;
-  });
-
-  // Merge in any nurses with expenses but no distance data
-  Object.keys(monthExpenses).forEach(name => {
-    if (!byNurse[name]) byNurse[name] = { name, km: 0, visits: 0, days: 0 };
-  });
-
-  const nurseList = Object.values(byNurse).sort((a,b) => b.km - a.km);
-  const totalKm = nurseList.reduce((s,n) => s + n.km, 0);
-  const totalVisits = nurseList.reduce((s,n) => s + n.visits, 0);
-
-  // Expense totals
-  let totalGas = 0, totalParking = 0, totalOther = 0;
-  Object.values(monthExpenses).forEach(e => {
-    totalGas += parseInt(e.gas)||0;
-    totalParking += parseInt(e.parking)||0;
-    totalOther += parseInt(e.other)||0;
-  });
-  const totalExpense = totalGas + totalParking + totalOther;
-
-  document.getElementById('totalKm').innerHTML = `${Math.round(totalKm*10)/10}<span class="stat-unit"> km</span>`;
-  document.getElementById('totalVisits').innerHTML = `${totalVisits}<span class="stat-unit"> 件</span>`;
-  document.getElementById('activeNurses').innerHTML = `${nurseList.length}<span class="stat-unit"> 名</span>`;
-
-  const tbody = document.getElementById('reportTable');
-  if (!nurseList.length) {
-    tbody.innerHTML = '<tr class="empty-row"><td colspan="8">データがありません</td></tr>';
-    document.getElementById('detailCard').style.display = 'none';
-    return;
-  }
-
-  tbody.innerHTML = nurseList.map(n => {
-    const pct = totalKm > 0 ? Math.round(n.km / totalKm * 100) : 0;
-    const color = pct > 40 ? 'var(--orange)' : pct > 25 ? 'var(--blue)' : 'var(--accent)';
-    const e = monthExpenses[n.name] || {};
-    const gas = parseInt(e.gas)||0;
-    const parking = parseInt(e.parking)||0;
-    const other = parseInt(e.other)||0;
-    const subtotal = gas + parking + other;
-    const fmt = v => v > 0 ? `<span class="tag tag-orange" style="font-family:var(--mono)">¥${v.toLocaleString()}</span>` : `<span style="color:var(--text3)">—</span>`;
-    return `
-      <tr>
-        <td><strong>${n.name}</strong></td>
-        <td>${n.visits}件 <span style="color:var(--text3)">(${n.days}日)</span></td>
-        <td><span class="tag tag-blue" style="font-family:var(--mono)">${Math.round(n.km*10)/10} km</span></td>
-        <td>${fmt(gas)}</td>
-        <td>${fmt(parking)}</td>
-        <td>${fmt(other)}</td>
-        <td>${subtotal > 0 ? `<strong style="font-family:var(--mono);color:var(--orange)">¥${subtotal.toLocaleString()}</strong>` : '<span style="color:var(--text3)">—</span>'}</td>
-        <td>
-          <div style="display:flex;align-items:center;gap:8px;">
-            <div class="progress-bar" style="width:80px;">
-              <div class="progress-fill" style="width:${pct}%;background:${color}"></div>
-            </div>
-            <span style="font-family:var(--mono);font-size:11px;color:var(--text2)">${pct}%</span>
-          </div>
-        </td>
-      </tr>
-    `;
-  }).join('');
-
-  // Detail table
-  document.getElementById('detailCard').style.display = 'block';
-  const detailTbody = document.getElementById('detailTable');
-  detailTbody.innerHTML = filtered.sort((a,b) => a.date.localeCompare(b.date)).map(r => `
-    <tr>
-      <td>${r.date}</td>
-      <td>${r.nurseName}</td>
-      <td style="font-size:12px;color:var(--text2)">${r.route.join(' → ')}</td>
-      <td><span class="tag tag-green" style="font-family:var(--mono)">${r.distanceKm} km</span></td>
-    </tr>
-  `).join('');
-}
-
-// ============================================================
-// EXPORT
-// ============================================================
-function exportCsv() {
-  const month = document.getElementById('reportMonth').value;
-  const allResults = JSON.parse(localStorage.getItem('results') || '[]');
-  const filtered = month ? allResults.filter(r => r.date.startsWith(month)) : allResults;
-  const expenses = getExpenses();
-  const monthExpenses = expenses[month] || {};
-  const savedRows = JSON.parse(localStorage.getItem('scheduleRows') || '[]');
-  const monthRows = savedRows.filter(r => r.date && r.date.startsWith(month));
-  const normalize = s => (s||'').replace(/[\u3000\s]/g, '');
-
-  // 看護師ごとに走行距離・経費・歩合を集計
-  const byNurse = {};
-
-  // 距離計算結果を集計
-  filtered.forEach(r => {
-    if (!byNurse[r.nurseName]) byNurse[r.nurseName] = { km: 0, visits: 0, normalCount: 0, nightCount: 0, incentive: 0 };
-    byNurse[r.nurseName].km += r.distanceKm;
-    byNurse[r.nurseName].visits += r.visitCount;
-  });
-
-  // 経費だけある看護師も追加
-  Object.keys(monthExpenses).forEach(name => {
-    if (!byNurse[name]) byNurse[name] = { km: 0, visits: 0, normalCount: 0, nightCount: 0, incentive: 0 };
-  });
-
-  // 歩合を集計（同行スタッフも含む）
-  const addIncentive = (nurseName, startTime) => {
-    const key = Object.keys(byNurse).find(k => normalize(k) === normalize(nurseName));
-    const name = key || nurseName;
-    if (!byNurse[name]) byNurse[name] = { km: 0, visits: 0, normalCount: 0, nightCount: 0, incentive: 0 };
-    const nurse = nurses.find(n => normalize(n.name) === normalize(nurseName));
-    const isContract = nurse?.employType === 'contract';
-    const isNight = startTime >= '18:00';
-    const unit = isContract ? (isNight ? 3000 : 2500) : (isNight ? 1000 : 500);
-    if (isNight) byNurse[name].nightCount++;
-    else byNurse[name].normalCount++;
-    byNurse[name].incentive += unit;
+function renderChart(data) {
+  const canvas=document.getElementById('chart-canvas');
+  const ctx=canvas.getContext('2d');
+  canvas.width=canvas.offsetWidth*window.devicePixelRatio;
+  canvas.height=canvas.offsetHeight*window.devicePixelRatio;
+  ctx.scale(window.devicePixelRatio,window.devicePixelRatio);
+  const W=canvas.offsetWidth,H=canvas.offsetHeight;
+  ctx.clearRect(0,0,W,H);
+  const recent=data.slice(-14);
+  if(recent.length<2){ ctx.fillStyle='#7a8099';ctx.font='12px IBM Plex Mono';ctx.textAlign='center';ctx.fillText('2件以上記録するとグラフが表示されます',W/2,H/2);return; }
+  const cfgMap={
+    hr:   {key:'bpm',     color:'#e8624a',pad:36,dec:0,suffix:''},
+    sleep:{key:'sleep',   color:'#7b8cde',pad:36,dec:1,suffix:'h'},
+    rf:   {key:'refresh', color:'#5bb88a',pad:12,dec:0,suffix:''},
+    day:  {key:'daySleep',color:'#e8c14a',pad:12,dec:0,suffix:''},
+    meal: {key:'meal',    color:'#9b7bde',pad:36,dec:1,suffix:'h前'},
   };
-
-  monthRows.forEach(r => {
-    addIncentive(r.nurseName, r.time);
-    if (r.nurse2Name) addIncentive(r.nurse2Name, r.time);
-    if (r.nurse3Name) addIncentive(r.nurse3Name, r.time);
+  const cfg=cfgMap[currentTab];
+  const vals=recent.map(e=>e[cfg.key]||0);
+  const nonZero=vals.filter(v=>v>0);
+  if(!nonZero.length){ ctx.fillStyle='#7a8099';ctx.font='12px IBM Plex Mono';ctx.textAlign='center';ctx.fillText('このデータはまだ記録されていません',W/2,H/2);return; }
+  const margin=currentTab==='hr'?10:currentTab==='sleep'?0.5:1;
+  const minV=Math.max(0,Math.min(...nonZero)-margin),maxV=Math.max(...nonZero)+margin;
+  const pad={t:20,r:12,b:28,l:cfg.pad};
+  const chartW=W-pad.l-pad.r,chartH=H-pad.t-pad.b;
+  ctx.strokeStyle='#2a3045';ctx.lineWidth=1;
+  for(let i=0;i<=4;i++){
+    const y=pad.t+(chartH/4)*i;
+    ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(pad.l+chartW,y);ctx.stroke();
+    if(currentTab!=='rf'&&currentTab!=='day'){ctx.fillStyle='#7a8099';ctx.font='9px IBM Plex Mono';ctx.textAlign='right';ctx.fillText((maxV-(maxV-minV)/4*i).toFixed(cfg.dec),pad.l-4,y+3);}
+  }
+  const toX=i=>pad.l+i*(chartW/(recent.length-1));
+  const toY=v=>maxV===minV?pad.t+chartH/2:pad.t+chartH*(1-(v-minV)/(maxV-minV));
+  const grad=ctx.createLinearGradient(0,pad.t,0,pad.t+chartH);
+  grad.addColorStop(0,cfg.color+'44');grad.addColorStop(1,cfg.color+'00');
+  ctx.beginPath();ctx.moveTo(toX(0),toY(vals[0]));
+  for(let i=1;i<vals.length;i++){const c=(toX(i-1)+toX(i))/2;ctx.bezierCurveTo(c,toY(vals[i-1]),c,toY(vals[i]),toX(i),toY(vals[i]));}
+  ctx.lineTo(toX(vals.length-1),pad.t+chartH);ctx.lineTo(toX(0),pad.t+chartH);ctx.closePath();ctx.fillStyle=grad;ctx.fill();
+  ctx.beginPath();ctx.moveTo(toX(0),toY(vals[0]));
+  for(let i=1;i<vals.length;i++){const c=(toX(i-1)+toX(i))/2;ctx.bezierCurveTo(c,toY(vals[i-1]),c,toY(vals[i]),toX(i),toY(vals[i]));}
+  ctx.strokeStyle=cfg.color;ctx.lineWidth=2;ctx.stroke();
+  recent.forEach((e,i)=>{
+    const x=toX(i),y=toY(vals[i]),v=vals[i];
+    ctx.beginPath();ctx.arc(x,y,4,0,Math.PI*2);ctx.fillStyle=cfg.color;ctx.fill();
+    ctx.textAlign='center';
+    const isEmoji=currentTab==='rf'||currentTab==='day';
+    if(isEmoji){ctx.font='13px serif';ctx.fillText((currentTab==='rf'?REFRESH_EMOJI:DAY_EMOJI)[v]||'',x,y-8);}
+    else{ctx.fillStyle='#e8e4dc';ctx.font='9px IBM Plex Mono';ctx.fillText(v.toFixed(cfg.dec)+cfg.suffix,x,y-8);}
+    if(i===0||i===recent.length-1||i%3===0){const[,m,d]=e.date.split('-');ctx.fillStyle='#7a8099';ctx.font='9px IBM Plex Mono';ctx.fillText(`${m}/${d}`,x,H-pad.b+14);}
   });
-
-  // 委託スタッフのガソリン代を走行距離×20円で自動反映
-  nurses.filter(n => n.employType === 'contract').forEach(n => {
-    const key = Object.keys(byNurse).find(k => normalize(k) === normalize(n.name));
-    if (!key) return;
-    const totalKm = byNurse[key].km;
-    if (!monthExpenses[n.name]) monthExpenses[n.name] = { gas:'', parking:'', other:'', note:'' };
-    if (!monthExpenses[n.name].gas) {
-      monthExpenses[n.name].gas = String(Math.round(totalKm * 20));
-    }
-  });
-
-  const bom = '\uFEFF';
-  let csv = `=== 月次サマリ (${month}) ===\n`;
-  csv += '看護師名,雇用形態,訪問件数,走行距離(km),ガソリン代(円),パーキング代(円),立替経費(円),合計経費(円),通常件数,夜間件数,歩合合計(円),合計支払(円)\n';
-
-  Object.keys(byNurse).sort().forEach(name => {
-    const d = byNurse[name];
-    const nurse = nurses.find(n => normalize(n.name) === normalize(name));
-    const typeLabel = nurse?.employType === 'contract' ? '委託' : '正社員';
-    const e = monthExpenses[name] || {};
-    const gas = parseInt(e.gas)||0;
-    const parking = parseInt(e.parking)||0;
-    const other = parseInt(e.other)||0;
-    const totalExpense = gas + parking + other;
-    const totalPay = totalExpense + d.incentive;
-    csv += `${name},${typeLabel},${d.visits},${Math.round(d.km*10)/10},${gas},${parking},${other},${totalExpense},${d.normalCount},${d.nightCount},${d.incentive},${totalPay}\n`;
-  });
-
-  csv += '\n=== 日別明細（走行距離） ===\n';
-  csv += '日付,看護師名,訪問件数,走行距離(km),ルート\n';
-  filtered.sort((a,b)=>a.date.localeCompare(b.date)).forEach(r => {
-    csv += `${r.date},${r.nurseName},${r.visitCount},${r.distanceKm},"${r.route.join(' → ')}"\n`;
-  });
-
-  csv += '\n=== 日別明細（歩合） ===\n';
-  csv += '日付,看護師名,利用者,開始時間,区分,単価(円)\n';
-  const detailRows = [];
-  monthRows.forEach(r => {
-    const addRow = (nurseName) => {
-      if (!nurseName) return;
-      const nurse = nurses.find(n => normalize(n.name) === normalize(nurseName));
-      const isContract = nurse?.employType === 'contract';
-      const isNight = r.time >= '18:00';
-      const unit = isContract ? (isNight ? 3000 : 2500) : (isNight ? 1000 : 500);
-      detailRows.push({ date: r.date, nurseName, clientName: r.clientName, time: r.time, label: isNight ? '夜間' : '通常', unit });
-    };
-    addRow(r.nurseName);
-    if (r.nurse2Name) addRow(r.nurse2Name);
-    if (r.nurse3Name) addRow(r.nurse3Name);
-  });
-  detailRows.sort((a,b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
-  detailRows.forEach(r => {
-    csv += `${r.date},${r.nurseName},${r.clientName},${r.time},${r.label},${r.unit}\n`;
-  });
-
-  const blob = new Blob([bom + csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a'); a.href = url;
-  a.download = `訪問看護_月次集計_${month || '全期間'}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
 }
+
+function renderLog(data) {
+  const list=document.getElementById('log-list');
+  if(!data.length){list.innerHTML='<div class="empty-state">まだ記録がありません 🌅<br>今朝のデータを入力してみましょう</div>';return;}
+  const maxBpm=Math.max(...data.map(e=>e.bpm));
+  list.innerHTML=[...data].reverse().map(e=>{
+    const zone=bpmZone(e.bpm),barW=Math.round((e.bpm/maxBpm)*100);
+    const rf=e.refresh?REFRESH_EMOJI[e.refresh]:'';
+    const ds=e.daySleep?DAY_EMOJI[e.daySleep]:'';
+    const habits=[];
+    if(e.bedtime) habits.push(`🛏 ${e.bedtime}就寝`);
+    if(e.meal!=null) habits.push(`🍽 食事${e.meal.toFixed(1)}h前`);
+    if(e.alcohol) habits.push(`🍺 ${ALCOHOL_LABEL[e.alcohol]}`);
+    if(e.caffeine) habits.push(`☕ ${CAFFEINE_LABEL[e.caffeine]}`);
+    return `<div class="log-item" data-date="${e.date}">
+      <div class="log-bar" style="width:${barW}%;background:${zone.color}"></div>
+      <div class="log-top">
+        <div class="log-date">${formatDateJa(e.date)}</div>
+        <div class="log-bpm" style="color:${zone.color}">${e.bpm}<small style="font-size:0.7rem;font-family:'IBM Plex Mono'"> bpm</small></div>
+        <span class="log-zone" style="background:${zone.color}22;color:${zone.color}">${zone.label}</span>
+        <div class="log-actions">
+          <button class="log-edit" onclick="startEdit('${e.date}')">✏️ 編集</button>
+          <button class="log-del"  onclick="deleteEntry('${e.date}')">×</button>
+        </div>
+      </div>
+      <div class="log-sleep">
+        <div>🌙 ${(e.sleep||0).toFixed(1)}h</div>
+        <div>😵 覚醒${e.wake||0}回</div>
+        ${rf?`<div>☀ ${rf}</div>`:''}
+        ${ds?`<div>🌤 日中${ds}</div>`:''}
+      </div>
+      ${habits.length?`<div class="log-habits">${habits.map(h=>`<span class="log-chip">${h}</span>`).join('')}</div>`:''}
+      ${e.note?`<div class="log-note">📝 ${e.note}</div>`:''}
+    </div>`;
+  }).join('');
+}
+
+function render() {
+  const data=loadData();
+  renderStats(data);
+  renderStreak(data);
+  renderBadges(data);
+  renderChart(data);
+  renderLog(data);
+}
+
+// Init
+const now=new Date();
+document.getElementById('today-date').textContent=
+  `${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日（${['日','月','火','水','木','金','土'][now.getDay()]}）`;
+setAlcohol(0); setCaffeine(0);
+document.getElementById('bpm-input').addEventListener('keydown',e=>{if(e.key==='Enter')saveEntry();});
+render();
+
+// AIコメントは既存データがあれば起動時にも取得
+const initData=loadData();
+if(initData.length) fetchAIComment(initData);
+
+window.addEventListener('resize',()=>renderChart(loadData()));
 </script>
 </body>
 </html>
