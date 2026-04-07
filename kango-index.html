@@ -2075,8 +2075,16 @@ function exportCsv() {
   const expenses = getExpenses();
   const monthExpenses = expenses[month] || {};
   const savedRows = JSON.parse(localStorage.getItem('scheduleRows') || '[]');
-  const monthRows = savedRows.filter(r => r.date && r.date.startsWith(month));
   const normalize = s => (s||'').replace(/[\u3000\s]/g, '');
+
+  // 2ヶ月前の月を計算
+  function twoMonthsBefore(ym) {
+    const [y, m] = ym.split('-').map(Number);
+    const d = new Date(y, m - 3);
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+  }
+  const employeeSourceMonth = month ? twoMonthsBefore(month) : '';
+  const contractSourceMonth = month;
 
   // マスタの正式名称に変換する関数
   const masterName = name => {
@@ -2101,14 +2109,17 @@ function exportCsv() {
     if (!byNurse[key]) byNurse[key] = { km: 0, visits: 0, normalCount: 0, nightCount: 0, incentive: 0 };
   });
 
-  // 歩合を集計（同行スタッフも含む・マスタ登録済みのみ）
-  const addIncentive = (nurseName, startTime) => {
+  // 歩合を集計（正社員は2ヶ月前・委託は当月）
+  const addIncentive = (nurseName, date, startTime) => {
     if (!nurseName) return;
     const nurse = nurses.find(n => normalize(n.name) === normalize(nurseName));
-    if (!nurse) return; // マスタ未登録はスキップ
+    if (!nurse) return;
+    const isContract = nurse.employType === 'contract';
+    // 正社員は2ヶ月前のデータのみ、委託は当月のみ
+    if (isContract && !date.startsWith(contractSourceMonth)) return;
+    if (!isContract && !date.startsWith(employeeSourceMonth)) return;
     const key = nurse.name;
     if (!byNurse[key]) byNurse[key] = { km: 0, visits: 0, normalCount: 0, nightCount: 0, incentive: 0 };
-    const isContract = nurse.employType === 'contract';
     const isNight = startTime >= '18:00';
     const unit = isContract ? (isNight ? 3000 : 2500) : (isNight ? 1000 : 500);
     if (isNight) byNurse[key].nightCount++;
@@ -2116,10 +2127,11 @@ function exportCsv() {
     byNurse[key].incentive += unit;
   };
 
-  monthRows.forEach(r => {
-    addIncentive(r.nurseName, r.time);
-    if (r.nurse2Name) addIncentive(r.nurse2Name, r.time);
-    if (r.nurse3Name) addIncentive(r.nurse3Name, r.time);
+  // 当月と2ヶ月前のデータを両方使って歩合集計
+  savedRows.filter(r => r.date && (r.date.startsWith(contractSourceMonth) || r.date.startsWith(employeeSourceMonth))).forEach(r => {
+    addIncentive(r.nurseName, r.date, r.time);
+    if (r.nurse2Name) addIncentive(r.nurse2Name, r.date, r.time);
+    if (r.nurse3Name) addIncentive(r.nurse3Name, r.date, r.time);
   });
 
   // 委託スタッフのガソリン代を走行距離×20円で自動反映
@@ -2156,16 +2168,21 @@ function exportCsv() {
   });
 
   csv += '\n=== 日別明細（歩合） ===\n';
-  csv += '日付,看護師名,利用者,開始時間,区分,単価(円)\n';
+  csv += `日付,看護師名,雇用形態,参照実績月,利用者,開始時間,区分,単価(円)\n`;
   const detailRows = [];
-  monthRows.forEach(r => {
+  savedRows.filter(r => r.date && (r.date.startsWith(contractSourceMonth) || r.date.startsWith(employeeSourceMonth))).forEach(r => {
     const addRow = (nurseName) => {
       if (!nurseName) return;
       const nurse = nurses.find(n => normalize(n.name) === normalize(nurseName));
-      const isContract = nurse?.employType === 'contract';
+      if (!nurse) return;
+      const isContract = nurse.employType === 'contract';
+      if (isContract && !r.date.startsWith(contractSourceMonth)) return;
+      if (!isContract && !r.date.startsWith(employeeSourceMonth)) return;
       const isNight = r.time >= '18:00';
       const unit = isContract ? (isNight ? 3000 : 2500) : (isNight ? 1000 : 500);
-      detailRows.push({ date: r.date, nurseName, clientName: r.clientName, time: r.time, label: isNight ? '夜間' : '通常', unit });
+      const typeLabel = isContract ? '委託' : '正社員';
+      const srcMonth = isContract ? contractSourceMonth : employeeSourceMonth;
+      detailRows.push({ date: r.date, nurseName: nurse.name, typeLabel, srcMonth, clientName: r.clientName, time: r.time, label: isNight ? '夜間' : '通常', unit });
     };
     addRow(r.nurseName);
     if (r.nurse2Name) addRow(r.nurse2Name);
@@ -2173,7 +2190,7 @@ function exportCsv() {
   });
   detailRows.sort((a,b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
   detailRows.forEach(r => {
-    csv += `${r.date},${r.nurseName},${r.clientName},${r.time},${r.label},${r.unit}\n`;
+    csv += `${r.date},${r.nurseName},${r.typeLabel},${r.srcMonth},${r.clientName},${r.time},${r.label},${r.unit}\n`;
   });
 
   const blob = new Blob([bom + csv], { type: 'text/csv;charset=utf-8;' });
