@@ -653,8 +653,8 @@ tr:hover td { background: var(--surface2); }
       <div class="alert alert-info" style="margin-bottom:16px;">
         <span>ℹ️</span>
         <div>
-          <strong>正社員：</strong>通常500円/件、18:00以降開始1,000円/件<br>
-          <strong>委託：</strong>通常2,500円/件、18:00以降開始3,000円/件<br>
+          <strong>正社員：</strong>通常500円/件、18:00以降開始1,000円/件　<span style="color:var(--orange)">※2ヶ月前の実績を表示</span><br>
+          <strong>委託：</strong>通常2,500円/件、18:00以降開始3,000円/件　<span style="color:var(--text2)">※当月の実績を表示</span><br>
           <span style="font-size:11px;color:var(--text2);">同行スタッフ（職員名2）も1件としてカウント</span>
         </div>
       </div>
@@ -1414,16 +1414,31 @@ function calcIncentiveUnit(nurseName, startTime) {
 
 function renderIncentiveTab() {
   const month = document.getElementById('incentiveMonth').value;
-
-  // scheduleRowsから対象月のデータを使う
-  // localStorageに保存されたscheduleRowsがない場合は現在のscheduleRowsを使う
   const savedRows = JSON.parse(localStorage.getItem('scheduleRows') || '[]');
   const rows = savedRows.length ? savedRows : scheduleRows;
-  const monthRows = rows.filter(r => r.date && r.date.startsWith(month));
+  const normalize = s => (s||'').replace(/[\u3000\s]/g, '');
+  const registeredNames = new Set(nurses.map(n => normalize(n.name)));
+  const isRegistered = name => registeredNames.has(normalize(name));
+  const masterName = name => nurses.find(n => normalize(n.name) === normalize(name))?.name || name;
 
-  if (!monthRows.length) {
+  // 正社員は2ヶ月前の実績、委託は当月の実績を使う
+  // 例：表示月が2026-05の場合、正社員は2026-03のデータを使う
+  function twoMonthsBefore(ym) {
+    const [y, m] = ym.split('-').map(Number);
+    const d = new Date(y, m - 3); // 2ヶ月前
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+  }
+  const employeeSourceMonth = twoMonthsBefore(month); // 正社員の実績月
+  const contractSourceMonth = month;                   // 委託の実績月
+
+  // 正社員の実績月・委託の実績月それぞれのデータを取得
+  const employeeRows = rows.filter(r => r.date && r.date.startsWith(employeeSourceMonth));
+  const contractRows = rows.filter(r => r.date && r.date.startsWith(contractSourceMonth));
+
+  const hasData = employeeRows.length > 0 || contractRows.length > 0;
+  if (!hasData) {
     document.getElementById('incentiveTable').innerHTML =
-      '<tr class="empty-row"><td colspan="6">データがありません。CSVを読み込んでください。</td></tr>';
+      `<tr class="empty-row"><td colspan="6">データがありません。<br>正社員分：${employeeSourceMonth}のCSV、委託分：${contractSourceMonth}のCSVを読み込んでください。</td></tr>`;
     document.getElementById('incentiveDetailCard').style.display = 'none';
     document.getElementById('incentiveTotalAll').innerHTML = '—<span class="stat-unit"> 円</span>';
     document.getElementById('incentiveNormalCount').innerHTML = '—<span class="stat-unit"> 件</span>';
@@ -1431,24 +1446,29 @@ function renderIncentiveTab() {
     return;
   }
 
-  // 看護師ごとに集計（マスタ登録済みのみ）
   const byNurse = {};
-  const normalize = s => (s||'').replace(/[\u3000\s]/g, '');
-  const registeredNames = new Set(nurses.map(n => normalize(n.name)));
-  const isRegistered = name => registeredNames.has(normalize(name));
 
-  const addVisit = (nurseName, date, clientName, startTime) => {
+  const addVisit = (nurseName, date, clientName, startTime, sourceMonth) => {
     if (!nurseName || !isRegistered(nurseName)) return;
-    if (!byNurse[nurseName]) byNurse[nurseName] = { normal: 0, night: 0, total: 0, details: [] };
+    const nurse = nurses.find(n => normalize(n.name) === normalize(nurseName));
+    if (!nurse) return;
+    const isContract = nurse.employType === 'contract';
+    // 正社員は employeeSourceMonth のデータのみ、委託は contractSourceMonth のみ
+    if (isContract && !date.startsWith(contractSourceMonth)) return;
+    if (!isContract && !date.startsWith(employeeSourceMonth)) return;
+    const key = nurse.name;
+    if (!byNurse[key]) byNurse[key] = { normal: 0, night: 0, total: 0, details: [], isContract };
     const isNight = startTime >= '18:00';
-    const unit = calcIncentiveUnit(nurseName, startTime);
-    if (isNight) byNurse[nurseName].night++;
-    else byNurse[nurseName].normal++;
-    byNurse[nurseName].total += unit;
-    byNurse[nurseName].details.push({ date, clientName, startTime, isNight, unit });
+    const unit = isContract ? (isNight ? 3000 : 2500) : (isNight ? 1000 : 500);
+    if (isNight) byNurse[key].night++;
+    else byNurse[key].normal++;
+    byNurse[key].total += unit;
+    byNurse[key].details.push({ date, clientName, startTime, isNight, unit, isContract });
   };
 
-  monthRows.forEach(r => {
+  // 全行を処理（正社員は employeeRows、委託は contractRows から自動振り分け）
+  const allSourceRows = [...new Map([...employeeRows, ...contractRows].map(r => [r.date+r.nurseName+r.clientName+r.time, r])).values()];
+  allSourceRows.forEach(r => {
     addVisit(r.nurseName, r.date, r.clientName, r.time);
     if (r.nurse2Name) addVisit(r.nurse2Name, r.date, r.clientName, r.time);
     if (r.nurse3Name) addVisit(r.nurse3Name, r.date, r.clientName, r.time);
@@ -1467,13 +1487,15 @@ function renderIncentiveTab() {
   const tbody = document.getElementById('incentiveTable');
   tbody.innerHTML = nurseList.map(name => {
     const d = byNurse[name];
-    const nurse = nurses.find(n => n.name.replace(/[\u3000\s]/g,'') === name.replace(/[\u3000\s]/g,''));
-    const typeTag = nurse?.employType === 'contract'
+    const typeTag = d.isContract
       ? `<span class="tag tag-orange">委託</span>`
       : `<span class="tag tag-blue">正社員</span>`;
+    const sourceLabel = d.isContract
+      ? `<span style="font-size:10px;color:var(--text2)">${contractSourceMonth}実績</span>`
+      : `<span style="font-size:10px;color:var(--orange)">${employeeSourceMonth}実績</span>`;
     return `
       <tr>
-        <td><strong>${name}</strong></td>
+        <td><strong>${name}</strong><br>${sourceLabel}</td>
         <td>${typeTag}</td>
         <td>${d.normal}件</td>
         <td>${d.night > 0 ? `<span class="tag tag-purple">${d.night}件</span>` : '—'}</td>
