@@ -1922,18 +1922,20 @@ function renderReport() {
   const registeredNames = new Set(nurses.map(n => normalize(n.name)));
   const isRegistered = name => registeredNames.has(normalize(name));
 
-  // Aggregate by nurse（マスタ登録済みのみ）
+  // Aggregate by nurse（マスタ登録済みのみ・正式名称に統一）
   const byNurse = {};
   filtered.filter(r => isRegistered(r.nurseName)).forEach(r => {
-    if (!byNurse[r.nurseName]) byNurse[r.nurseName] = { name: r.nurseName, km: 0, visits: 0, days: 0 };
-    byNurse[r.nurseName].km += r.distanceKm;
-    byNurse[r.nurseName].visits += r.visitCount;
-    byNurse[r.nurseName].days++;
+    const key = nurses.find(n => normalize(n.name) === normalize(r.nurseName))?.name || r.nurseName;
+    if (!byNurse[key]) byNurse[key] = { name: key, km: 0, visits: 0, days: 0 };
+    byNurse[key].km += r.distanceKm;
+    byNurse[key].visits += r.visitCount;
+    byNurse[key].days++;
   });
 
   // Merge in any nurses with expenses but no distance data（マスタ登録済みのみ）
   Object.keys(monthExpenses).filter(name => isRegistered(name)).forEach(name => {
-    if (!byNurse[name]) byNurse[name] = { name, km: 0, visits: 0, days: 0 };
+    const key = nurses.find(n => normalize(n.name) === normalize(name))?.name || name;
+    if (!byNurse[key]) byNurse[key] = { name: key, km: 0, visits: 0, days: 0 };
   });
 
   const nurseList = Object.values(byNurse).sort((a,b) => b.km - a.km);
@@ -2016,33 +2018,42 @@ function exportCsv() {
   const monthRows = savedRows.filter(r => r.date && r.date.startsWith(month));
   const normalize = s => (s||'').replace(/[\u3000\s]/g, '');
 
-  // 看護師ごとに走行距離・経費・歩合を集計
+  // マスタの正式名称に変換する関数
+  const masterName = name => {
+    const found = nurses.find(n => normalize(n.name) === normalize(name));
+    return found ? found.name : name;
+  };
+
+  // 看護師ごとに走行距離・経費・歩合を集計（マスタ正式名称をキーにする）
   const byNurse = {};
 
   // 距離計算結果を集計
   filtered.forEach(r => {
-    if (!byNurse[r.nurseName]) byNurse[r.nurseName] = { km: 0, visits: 0, normalCount: 0, nightCount: 0, incentive: 0 };
-    byNurse[r.nurseName].km += r.distanceKm;
-    byNurse[r.nurseName].visits += r.visitCount;
+    const key = masterName(r.nurseName);
+    if (!byNurse[key]) byNurse[key] = { km: 0, visits: 0, normalCount: 0, nightCount: 0, incentive: 0 };
+    byNurse[key].km += r.distanceKm;
+    byNurse[key].visits += r.visitCount;
   });
 
   // 経費だけある看護師も追加
   Object.keys(monthExpenses).forEach(name => {
-    if (!byNurse[name]) byNurse[name] = { km: 0, visits: 0, normalCount: 0, nightCount: 0, incentive: 0 };
+    const key = masterName(name);
+    if (!byNurse[key]) byNurse[key] = { km: 0, visits: 0, normalCount: 0, nightCount: 0, incentive: 0 };
   });
 
-  // 歩合を集計（同行スタッフも含む）
+  // 歩合を集計（同行スタッフも含む・マスタ登録済みのみ）
   const addIncentive = (nurseName, startTime) => {
-    const key = Object.keys(byNurse).find(k => normalize(k) === normalize(nurseName));
-    const name = key || nurseName;
-    if (!byNurse[name]) byNurse[name] = { km: 0, visits: 0, normalCount: 0, nightCount: 0, incentive: 0 };
+    if (!nurseName) return;
     const nurse = nurses.find(n => normalize(n.name) === normalize(nurseName));
-    const isContract = nurse?.employType === 'contract';
+    if (!nurse) return; // マスタ未登録はスキップ
+    const key = nurse.name;
+    if (!byNurse[key]) byNurse[key] = { km: 0, visits: 0, normalCount: 0, nightCount: 0, incentive: 0 };
+    const isContract = nurse.employType === 'contract';
     const isNight = startTime >= '18:00';
     const unit = isContract ? (isNight ? 3000 : 2500) : (isNight ? 1000 : 500);
-    if (isNight) byNurse[name].nightCount++;
-    else byNurse[name].normalCount++;
-    byNurse[name].incentive += unit;
+    if (isNight) byNurse[key].nightCount++;
+    else byNurse[key].normalCount++;
+    byNurse[key].incentive += unit;
   };
 
   monthRows.forEach(r => {
@@ -2053,9 +2064,8 @@ function exportCsv() {
 
   // 委託スタッフのガソリン代を走行距離×20円で自動反映
   nurses.filter(n => n.employType === 'contract').forEach(n => {
-    const key = Object.keys(byNurse).find(k => normalize(k) === normalize(n.name));
-    if (!key) return;
-    const totalKm = byNurse[key].km;
+    if (!byNurse[n.name]) return;
+    const totalKm = byNurse[n.name].km;
     if (!monthExpenses[n.name]) monthExpenses[n.name] = { gas:'', parking:'', other:'', note:'' };
     if (!monthExpenses[n.name].gas) {
       monthExpenses[n.name].gas = String(Math.round(totalKm * 20));
