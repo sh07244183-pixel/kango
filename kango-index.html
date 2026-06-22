@@ -675,20 +675,47 @@ tr:hover td { background: var(--surface2); }
         </div>
       </div>
 
-      <!-- 看護師別テーブル -->
-      <div class="table-wrap">
+      <!-- 正社員セクション -->
+      <div class="card-header" style="margin-top:8px;">
+        <div class="card-title" style="font-size:13px;">
+          <span class="tag tag-blue">正社員</span>
+          <span id="employeeMonthLabel" style="margin-left:8px;color:var(--orange);font-size:12px;"></span>
+        </div>
+      </div>
+      <div class="table-wrap" style="margin-bottom:20px;">
         <table>
           <thead>
             <tr>
               <th>看護師名</th>
-              <th>雇用形態</th>
               <th>通常件数</th>
               <th>夜間件数</th>
               <th>合計件数</th>
               <th>歩合合計</th>
             </tr>
           </thead>
-          <tbody id="incentiveTable"><tr class="empty-row"><td colspan="6">CSVを読み込んで計算してください</td></tr></tbody>
+          <tbody id="incentiveEmployeeTable"><tr class="empty-row"><td colspan="5">データがありません</td></tr></tbody>
+        </table>
+      </div>
+
+      <!-- 委託セクション -->
+      <div class="card-header">
+        <div class="card-title" style="font-size:13px;">
+          <span class="tag tag-orange">委託</span>
+          <span id="contractMonthLabel" style="margin-left:8px;color:var(--text2);font-size:12px;"></span>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>看護師名</th>
+              <th>通常件数</th>
+              <th>夜間件数</th>
+              <th>合計件数</th>
+              <th>歩合合計</th>
+            </tr>
+          </thead>
+          <tbody id="incentiveContractTable"><tr class="empty-row"><td colspan="5">データがありません</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -1243,7 +1270,12 @@ function parseCsv() {
 
   renderCsvPreview();
   syncReportMonth(yearMonth);
-  localStorage.setItem('scheduleRows', JSON.stringify(scheduleRows));
+
+  // 既存の保存データと月単位でマージ（同じ月は新データで置き換え、他の月は保持）
+  const existingRows = JSON.parse(localStorage.getItem('scheduleRows') || '[]');
+  const otherMonthRows = existingRows.filter(r => !r.date.startsWith(yearMonth));
+  const mergedRows = [...otherMonthRows, ...scheduleRows];
+  localStorage.setItem('scheduleRows', JSON.stringify(mergedRows));
 
   const warns = [];
   if (unmatched.nurses.size) warns.push(`未登録の看護師 ${unmatched.nurses.size}名:\n  ${[...unmatched.nurses].join('\n  ')}`);
@@ -1437,8 +1469,12 @@ function renderIncentiveTab() {
 
   const hasData = employeeRows.length > 0 || contractRows.length > 0;
   if (!hasData) {
-    document.getElementById('incentiveTable').innerHTML =
-      `<tr class="empty-row"><td colspan="6">データがありません。<br>正社員分：${employeeSourceMonth}のCSV、委託分：${contractSourceMonth}のCSVを読み込んでください。</td></tr>`;
+    document.getElementById('incentiveEmployeeTable').innerHTML =
+      `<tr class="empty-row"><td colspan="5">データがありません（${employeeSourceMonth}のCSVが必要）</td></tr>`;
+    document.getElementById('incentiveContractTable').innerHTML =
+      `<tr class="empty-row"><td colspan="5">データがありません（${contractSourceMonth}のCSVが必要）</td></tr>`;
+    document.getElementById('employeeMonthLabel').textContent = `${employeeSourceMonth} の訪問実績（${month}支給分）`;
+    document.getElementById('contractMonthLabel').textContent = `${contractSourceMonth} の訪問実績（当月支給）`;
     document.getElementById('incentiveDetailCard').style.display = 'none';
     document.getElementById('incentiveTotalAll').innerHTML = '—<span class="stat-unit"> 円</span>';
     document.getElementById('incentiveNormalCount').innerHTML = '—<span class="stat-unit"> 件</span>';
@@ -1466,8 +1502,10 @@ function renderIncentiveTab() {
     byNurse[key].details.push({ date, clientName, startTime, isNight, unit, isContract });
   };
 
-  // 全行を処理（正社員は employeeRows、委託は contractRows から自動振り分け）
-  const allSourceRows = [...new Map([...employeeRows, ...contractRows].map(r => [r.date+r.nurseName+r.clientName+r.time, r])).values()];
+  // 全行を処理（正社員は employeeRows、委託は contractRows から自動振り分け。月が同じ場合は重複を避ける）
+  const allSourceRows = employeeSourceMonth === contractSourceMonth
+    ? employeeRows
+    : [...employeeRows, ...contractRows];
   allSourceRows.forEach(r => {
     addVisit(r.nurseName, r.date, r.clientName, r.time);
     if (r.nurse2Name) addVisit(r.nurse2Name, r.date, r.clientName, r.time);
@@ -1483,20 +1521,19 @@ function renderIncentiveTab() {
   document.getElementById('incentiveNormalCount').innerHTML = `${totalNormal}<span class="stat-unit"> 件</span>`;
   document.getElementById('incentiveNightCount').innerHTML = `${totalNight}<span class="stat-unit"> 件</span>`;
 
-  // 看護師別テーブル
-  const tbody = document.getElementById('incentiveTable');
-  tbody.innerHTML = nurseList.map(name => {
+  // 実績月ラベル
+  document.getElementById('employeeMonthLabel').textContent = `${employeeSourceMonth} の訪問実績（${month}支給分）`;
+  document.getElementById('contractMonthLabel').textContent = `${contractSourceMonth} の訪問実績（当月支給）`;
+
+  // 看護師別テーブル（正社員・委託で分割）
+  const employeeNames = nurseList.filter(name => !byNurse[name].isContract);
+  const contractNames = nurseList.filter(name => byNurse[name].isContract);
+
+  const renderRows = (names) => names.map(name => {
     const d = byNurse[name];
-    const typeTag = d.isContract
-      ? `<span class="tag tag-orange">委託</span>`
-      : `<span class="tag tag-blue">正社員</span>`;
-    const sourceLabel = d.isContract
-      ? `<span style="font-size:10px;color:var(--text2)">${contractSourceMonth}実績</span>`
-      : `<span style="font-size:10px;color:var(--orange)">${employeeSourceMonth}実績</span>`;
     return `
       <tr>
-        <td><strong>${name}</strong><br>${sourceLabel}</td>
-        <td>${typeTag}</td>
+        <td><strong>${name}</strong></td>
         <td>${d.normal}件</td>
         <td>${d.night > 0 ? `<span class="tag tag-purple">${d.night}件</span>` : '—'}</td>
         <td>${d.normal + d.night}件</td>
@@ -1504,6 +1541,11 @@ function renderIncentiveTab() {
       </tr>
     `;
   }).join('');
+
+  document.getElementById('incentiveEmployeeTable').innerHTML =
+    employeeNames.length ? renderRows(employeeNames) : '<tr class="empty-row"><td colspan="5">データがありません</td></tr>';
+  document.getElementById('incentiveContractTable').innerHTML =
+    contractNames.length ? renderRows(contractNames) : '<tr class="empty-row"><td colspan="5">データがありません</td></tr>';
 
   // 日別明細
   document.getElementById('incentiveDetailCard').style.display = 'block';
@@ -1516,7 +1558,7 @@ function renderIncentiveTab() {
   detailTbody.innerHTML = allDetails.map(d => `
     <tr>
       <td>${d.date}</td>
-      <td>${d.nurseName}</td>
+      <td>${d.nurseName} ${d.isContract ? '<span class="tag tag-orange" style="font-size:10px;">委託</span>' : '<span class="tag tag-blue" style="font-size:10px;">正社員</span>'}</td>
       <td>${d.clientName}</td>
       <td>${d.startTime} ${d.isNight ? '<span class="tag tag-purple" style="font-size:10px;">夜間</span>' : ''}</td>
       <td>${d.isNight ? '夜間' : '通常'}</td>
@@ -1530,9 +1572,11 @@ function renderIncentiveTab() {
 function getAllMonths() {
   const results = JSON.parse(localStorage.getItem('results') || '[]');
   const expenses = JSON.parse(localStorage.getItem('expenses') || '{}');
+  const scheduleRows = JSON.parse(localStorage.getItem('scheduleRows') || '[]');
   const months = new Set();
   results.forEach(r => { if (r.date) months.add(r.date.substring(0,7)); });
   Object.keys(expenses).forEach(m => months.add(m));
+  scheduleRows.forEach(r => { if (r.date) months.add(r.date.substring(0,7)); });
   return [...months].sort();
 }
 
@@ -1540,6 +1584,7 @@ function renderStorageTab() {
   const months = getAllMonths();
   const results = JSON.parse(localStorage.getItem('results') || '[]');
   const expenses = JSON.parse(localStorage.getItem('expenses') || '{}');
+  const scheduleRowsAll = JSON.parse(localStorage.getItem('scheduleRows') || '[]');
 
   // 月一覧テーブル
   const tbody = document.getElementById('storageMonthTable');
@@ -1549,7 +1594,7 @@ function renderStorageTab() {
     tbody.innerHTML = months.map(m => {
       const [y, mo] = m.split('-');
       const monthLabel = `${y}年${parseInt(mo)}月`;
-      const schedCount = results.filter(r => r.date.startsWith(m)).length;
+      const schedCount = scheduleRowsAll.filter(r => r.date && r.date.startsWith(m)).length;
       const distCount  = results.filter(r => r.date.startsWith(m) && r.distanceKm > 0).length;
       const expKeys    = Object.keys(expenses[m] || {});
       const hasExp     = expKeys.length > 0;
@@ -1557,7 +1602,7 @@ function renderStorageTab() {
         <tr>
           <td><strong>${monthLabel}</strong></td>
           <td>${schedCount > 0
-            ? `<span class="tag tag-green">${schedCount}日分</span>`
+            ? `<span class="tag tag-green">${schedCount}件</span>`
             : `<span style="color:var(--text3)">—</span>`}</td>
           <td>${distCount > 0
             ? `<span class="tag tag-blue">${distCount}ルート</span>`
@@ -1590,11 +1635,13 @@ function renderStorageTab() {
 function exportMonthJson(month) {
   const results = JSON.parse(localStorage.getItem('results') || '[]');
   const expenses = JSON.parse(localStorage.getItem('expenses') || '{}');
+  const scheduleRowsAll = JSON.parse(localStorage.getItem('scheduleRows') || '[]');
   const data = {
     month,
     exportedAt: new Date().toISOString(),
     results: results.filter(r => r.date.startsWith(month)),
-    expenses: expenses[month] || {}
+    expenses: expenses[month] || {},
+    scheduleRows: scheduleRowsAll.filter(r => r.date && r.date.startsWith(month))
   };
   downloadJson(data, `kango_${month}.json`);
 }
@@ -1615,6 +1662,7 @@ function downloadBackup() {
     clients:  JSON.parse(localStorage.getItem('clients')  || '[]'),
     results:  JSON.parse(localStorage.getItem('results')  || '[]'),
     expenses: JSON.parse(localStorage.getItem('expenses') || '{}'),
+    scheduleRows: JSON.parse(localStorage.getItem('scheduleRows') || '[]'),
   };
   downloadJson(data, `kango_backup_${new Date().toISOString().slice(0,10)}.json`);
 }
@@ -1640,6 +1688,7 @@ function restoreBackup(e) {
       if (data.clients)  { localStorage.setItem('clients',  JSON.stringify(data.clients));  clients = data.clients; }
       if (data.results)  { localStorage.setItem('results',  JSON.stringify(data.results));  results = data.results; }
       if (data.expenses) { localStorage.setItem('expenses', JSON.stringify(data.expenses)); }
+      if (data.scheduleRows) { localStorage.setItem('scheduleRows', JSON.stringify(data.scheduleRows)); scheduleRows = data.scheduleRows; }
       renderNurseTable();
       renderClientTable();
       renderStorageTab();
@@ -1657,7 +1706,7 @@ function deleteMonthData() {
   const month = document.getElementById('deleteTargetMonth').value;
   if (!month) { alert('月を選択してください'); return; }
   const [y, mo] = month.split('-');
-  if (!confirm(`${y}年${parseInt(mo)}月のデータ（距離計算・経費）を削除しますか？`)) return;
+  if (!confirm(`${y}年${parseInt(mo)}月のデータ（スケジュール・距離計算・経費）を削除しますか？`)) return;
 
   const results = JSON.parse(localStorage.getItem('results') || '[]');
   localStorage.setItem('results', JSON.stringify(results.filter(r => !r.date.startsWith(month))));
@@ -1665,6 +1714,9 @@ function deleteMonthData() {
   const expenses = JSON.parse(localStorage.getItem('expenses') || '{}');
   delete expenses[month];
   localStorage.setItem('expenses', JSON.stringify(expenses));
+
+  const scheduleRowsAll = JSON.parse(localStorage.getItem('scheduleRows') || '[]');
+  localStorage.setItem('scheduleRows', JSON.stringify(scheduleRowsAll.filter(r => !r.date || !r.date.startsWith(month))));
 
   renderStorageTab();
   alert(`✅ ${y}年${parseInt(mo)}月のデータを削除しました`);
@@ -1674,8 +1726,8 @@ function deleteMonthData() {
 function deleteAllData() {
   if (!confirm('⚠ 全データ（マスタ含む）を削除します。本当によろしいですか？')) return;
   if (!confirm('本当に削除しますか？この操作は元に戻せません。')) return;
-  ['nurses','clients','results','expenses'].forEach(k => localStorage.removeItem(k));
-  nurses = []; clients = []; results = [];
+  ['nurses','clients','results','expenses','scheduleRows'].forEach(k => localStorage.removeItem(k));
+  nurses = []; clients = []; results = []; scheduleRows = [];
   renderNurseTable(); renderClientTable(); renderStorageTab();
   alert('✅ 全データをリセットしました');
 }
@@ -1956,11 +2008,25 @@ function renderReport() {
 
   // Aggregate by nurse（マスタ登録済みのみ・正式名称に統一）
   const byNurse = {};
+
+  // scheduleRowsから当月の訪問件数を集計（職員名2含む）
+  savedRows.filter(r => r.date && r.date.startsWith(month)).forEach(r => {
+    const addVisitCount = (nurseName) => {
+      if (!nurseName || !isRegistered(nurseName)) return;
+      const key = nurses.find(n => normalize(n.name) === normalize(nurseName))?.name || nurseName;
+      if (!byNurse[key]) byNurse[key] = { name: key, km: 0, visits: 0, days: 0, incentive: 0 };
+      byNurse[key].visits++;
+    };
+    addVisitCount(r.nurseName);
+    if (r.nurse2Name) addVisitCount(r.nurse2Name);
+    if (r.nurse3Name) addVisitCount(r.nurse3Name);
+  });
+
+  // 距離計算結果からkm・日数を集計
   filtered.filter(r => isRegistered(r.nurseName)).forEach(r => {
     const key = nurses.find(n => normalize(n.name) === normalize(r.nurseName))?.name || r.nurseName;
     if (!byNurse[key]) byNurse[key] = { name: key, km: 0, visits: 0, days: 0, incentive: 0 };
     byNurse[key].km += r.distanceKm;
-    byNurse[key].visits += r.visitCount;
     byNurse[key].days++;
   });
 
