@@ -1248,8 +1248,10 @@ function parseCsv() {
 
   renderCsvPreview();
   syncReportMonth(yearMonth);
-  localStorage.setItem('scheduleRows', JSON.stringify(scheduleRows));
-
+const existingRows = JSON.parse(localStorage.getItem('scheduleRows') || '[]');
+  const otherMonthRows = existingRows.filter(r => !r.date.startsWith(yearMonth));
+  const mergedRows = [...otherMonthRows, ...scheduleRows];
+  localStorage.setItem('scheduleRows', JSON.stringify(mergedRows));
   const warns = [];
   if (unmatched.nurses.size) warns.push(`未登録の看護師 ${unmatched.nurses.size}名:\n  ${[...unmatched.nurses].join('\n  ')}`);
   if (unmatched.clients.size) warns.push(`未登録の利用者 ${unmatched.clients.size}名:\n  ${[...unmatched.clients].join('\n  ')}`);
