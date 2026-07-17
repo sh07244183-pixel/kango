@@ -1248,9 +1248,9 @@ function parseCsv() {
 
   renderCsvPreview();
   syncReportMonth(yearMonth);
-const existingRows = JSON.parse(localStorage.getItem('scheduleRows') || '[]');
-  const otherMonthRows = existingRows.filter(r => !r.date.startsWith(yearMonth));
-  const mergedRows = [...otherMonthRows, ...scheduleRows];
+let existingRows = JSON.parse(localStorage.getItem('scheduleRows') || '[]');
+  let otherMonthRows = existingRows.filter(r => !r.date.startsWith(yearMonth));
+  let mergedRows　= [...otherMonthRows, ...scheduleRows];
   const existingRows = JSON.parse(localStorage.getItem('scheduleRows') || '[]');
 const otherMonthRows = existingRows.filter(r => !r.date.startsWith(yearMonth));
 const mergedRows = [...otherMonthRows, ...scheduleRows];
